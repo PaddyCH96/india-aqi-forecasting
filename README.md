@@ -59,7 +59,7 @@ Urban risk indicators
 Policy-relevant insights
 Decision support tools for real estate and infrastructure planning
 
-
+- Hyderabad shows a consistent upward AQI trend post-2018, indicating increasing environmental risk in high-growth urban corridors
 
 ---
 
