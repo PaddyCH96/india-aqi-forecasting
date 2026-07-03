@@ -6,6 +6,11 @@ Use --synthetic flag to include synthetic 2020-2024 data.
 """
 
 import argparse
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import pandas as pd
 from tqdm import tqdm
 from lib.logging import setup_logger

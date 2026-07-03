@@ -1,8 +1,16 @@
-# India Air Quality: End-to-End Data & ML Portfolio Project
+<p align="center">
+  <h1 align="center">India Air Quality Forecasting</h1>
+  <p align="center">
+    <strong>700K+ records · 26 cities · 12 pollutants · 5.5 years</strong><br>
+    <em>XGBoost models achieve 0.8–3.2% MAPE · Interactive dashboard · REST API · Dockerized</em>
+    <br><br>
+    <a href="CASE_STUDY.md"><strong>Case Study</strong></a> ·
+    <a href="INSIGHTS.md"><strong>Key Insights</strong></a> ·
+    <a href="DEMO_WALKTHROUGH.md"><strong>Demo Walkthrough</strong></a>
+  </p>
+</p>
 
-**Forecast AQI across 26 Indian cities with 0.8–3.2% MAPE using XGBoost + engineered features. Includes EDA, interactive dashboard, REST API, and Docker deployment.**
-
-[View Case Study →](CASE_STUDY.md) · [Key Insights →](INSIGHTS.md) · [GitHub →](https://github.com/PaddyCH96/india-aqi-forecasting)
+---
 
 ---
 

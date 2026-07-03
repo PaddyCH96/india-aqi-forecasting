@@ -3,6 +3,11 @@
 Prophet Model Validation with Cross-Validation
 Compares: Basic vs Pre-COVID vs Full Dataset models
 """
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import numpy as np
 from prophet.diagnostics import cross_validation, performance_metrics
 

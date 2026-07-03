@@ -7,6 +7,10 @@ Priority: processed CSV > raw CPCB CSV > synthetic generation.
 """
 
 import os
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pandas as pd
 from datetime import datetime, timezone
 from lib.db import get_engine, get_data_freshness

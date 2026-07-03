@@ -4,6 +4,11 @@ Fetch AQI from OpenAQ API (openaq.org)
 Has real Indian government station data.
 All inserted data carries provenance flags.
 """
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import pandas as pd
 import requests
 import time

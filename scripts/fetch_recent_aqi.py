@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Fetch recent AQI data from Open-Meteo API with provenance flags."""
 
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import pandas as pd
 import requests
 import time

@@ -2,6 +2,10 @@
 """Initialize the database with provenance schema and seed from real CSVs only."""
 
 import os
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pandas as pd
 from datetime import datetime, timezone
 from sqlalchemy import text as sa_text
