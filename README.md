@@ -12,37 +12,47 @@ Forecast AQI up to 2030 for Indian cities using Prophet time-series models. Incl
 - **Docker Deployment** — 4-service compose: PostgreSQL, seed, dashboard, optional API
 - **CI Pipeline** — GitHub Actions runs 100 tests with 95% coverage on push
 - **Shared Library** — `lib/` package as a single source of truth for all business logic
+- **ML Forecasting** — XGBoost regression with feature engineering (lags, rolling stats, seasonals, interactions) — per-city models achieve 0.8–3.2% MAPE
+- **Analytics Dashboard** — 6-page Streamlit app: executive summary, historical trends, pollutant drill-down, city deep-dive, data quality, and forecasting
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Data Sources                                               │
-│  ┌──────────┐  ┌────────────┐  ┌─────────────────────────┐ │
-│  │ OpenAQ   │  │ Open-Meteo │  │ Synthetic (fallback)    │ │
-│  └────┬─────┘  └─────┬──────┘  └───────────┬─────────────┘ │
-│       │              │                      │               │
-│       └──────────────┴──────────────────────┘               │
-│                           │                                 │
-│                    ┌──────▼──────┐                          │
-│                    │  seed_data  │                          │
-│                    └──────┬──────┘                          │
-│                           │                                 │
-│                    ┌──────▼──────┐                          │
-│                    │  PostgreSQL │                          │
-│                    │  (city_day) │                          │
-│                    └──┬──────┬───┘                          │
-│           ┌───────────┘      └───────────┐                  │
-│           │                              │                  │
-│    ┌──────▼──────┐              ┌────────▼────────┐       │
-│    │  Dashboards │              │  FastAPI API    │       │
-│    │  (Streamlit)│              │  /forecast       │       │
-│    │  :8501      │              │  /validate       │       │
-│    └─────────────┘              │  /cities/:health │       │
-│                                 └────────┬────────┘       │
-│                                          │                 │
-│  User ◄──── Browser/curl ◄──────────────┘                 │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Data Sources                                                   │
+│  ┌──────────┐  ┌────────────┐  ┌─────────────────────────┐     │
+│  │ OpenAQ   │  │ Open-Meteo │  │ Synthetic (fallback)    │     │
+│  └────┬─────┘  └─────┬──────┘  └───────────┬─────────────┘     │
+│       │              │                      │                   │
+│       └──────────────┴──────────────────────┘                   │
+│                           │                                     │
+│                    ┌──────▼──────┐                              │
+│                    │  seed_data  │                              │
+│                    └──────┬──────┘                              │
+│                           │                                     │
+│                    ┌──────▼──────┐                              │
+│                    │  PostgreSQL │                              │
+│                    │  (city_day, │                              │
+│                    │   hourly)   │                              │
+│                    └──┬──────┬───┘                              │
+│           ┌───────────┘      └───────────┐                      │
+│           │                              │                      │
+│    ┌──────▼──────┐              ┌────────▼────────┐           │
+│    │  Dashboards │              │  FastAPI API    │           │
+│    │  (Streamlit)│              │  /forecast       │           │
+│    │  :8501      │              │  /validate       │           │
+│    │  + Forecast │              │  /cities/:health │           │
+│    │    Page     │              │  /data/freshness │           │
+│    └──────┬──────┘              └────────┬────────┘           │
+│           │                              │                     │
+│    ┌──────▼──────────────────────────────▼──────────┐         │
+│    │         ML Layer (lib/)                        │         │
+│    │  feature_engineering → ml_pipeline → model_training   │
+│    │  model_evaluation → forecasting_service         │         │
+│    └─────────────────────────────────────────────────┘         │
+│                                          │                     │
+│  User ◄──── Browser/curl ◄──────────────┘                     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Prerequisites
@@ -96,11 +106,12 @@ python scripts/seed_data.py   # bootstraps from CSV or generates synthetic data
 ### Dashboards
 
 ```bash
-# Minimal 3-tab dashboard (History, Forecast, Validation)
-streamlit run scripts/dashboard_final.py
+# 6-page unified analytics dashboard (recommended)
+streamlit run scripts/dashboard.py
 
-# Feature-rich 4-tab dashboard (adds Multi-City Comparison)
-streamlit run scripts/dashboard_complete.py
+# Legacy dashboards
+streamlit run scripts/dashboard_final.py      # 3-tab (History, Forecast, Validation)
+streamlit run scripts/dashboard_complete.py    # 4-tab (adds Multi-City Comparison)
 ```
 
 ### REST API
@@ -159,19 +170,27 @@ india-air-quality/
 │   ├── models.py           #   Prophet model wrappers
 │   ├── metrics.py          #   MAPE, RMSE, MAE, evaluation
 │   ├── aqi.py              #   PM2.5→AQI conversion & synthetic data
-│   ├── charts.py           #   6 reusable chart functions
+│   ├── charts.py           #   19 reusable chart functions (6 orig + 13 EDA)
 │   ├── logging.py          #   Logging setup
-│   └── utils.py            #   Retry decorator, URL validation
+│   ├── utils.py            #   Retry decorator, URL validation
+│   ├── analysis.py         #   15 EDA functions (city ranking, distributions, etc.)
+│   ├── feature_engineering.py  # Lag, rolling, seasonal, interaction features
+│   ├── ml_pipeline.py      # Dataset builder, time-based split, feature selection
+│   ├── model_training.py   # 5 model trainers (MA, SN, XGBoost, RF, Prophet)
+│   ├── model_evaluation.py # Cross-city eval, error analysis, seasonal breakdown
+│   └── forecasting_service.py # Train/save/load/predict for dashboard integration
 ├── scripts/                # Runnable scripts
 │   ├── api.py              #   FastAPI REST API
-│   ├── dashboard_final.py  #   3-tab Streamlit dashboard
-│   ├── dashboard_complete.py # 4-tab feature-rich dashboard
+│   ├── dashboard.py        #   6-page unified analytics dashboard (recommended)
+│   ├── dashboard_final.py  #   3-tab Streamlit dashboard (legacy)
+│   ├── dashboard_complete.py # 4-tab feature-rich dashboard (legacy)
 │   ├── seed_data.py        #   Database bootstrap
 │   ├── fetch_openaq.py     #   OpenAQ ingestion
 │   ├── fetch_recent_aqi.py #   Open-Meteo ingestion
+│   ├── ingest_hourly.py    #   Hourly data ingestion pipeline
 │   ├── multi_city_pipeline.py  # Batch forecasting
 │   └── validate_prophet.py #   Model validation
-├── tests/                  # 100 tests across 6 files
+├── tests/                  # 144 tests across 9 files
 ├── docs/                   # Architecture, deployment, testing, handover
 ├── notebooks/              # Jupyter notebooks
 ├── sql/                    # Analytical SQL queries

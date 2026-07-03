@@ -38,6 +38,11 @@ from lib.analysis import (
     monthly_trends,
     pollutant_summary,
 )
+from lib.forecasting_service import (
+    get_forecast_for_dashboard,
+    list_trained_models,
+    train_and_save_model,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -369,6 +374,114 @@ with tab_h:
     if use_synthetic:
         st.warning(f"Synthetic data ({freshness['synthetic_rows']:,} rows) is included. "
                    "These are simulated values, not real measurements.")
+
+# ═══════════════════════════════════════════════════════════════════
+# PAGE 6: FORECASTING
+# ═══════════════════════════════════════════════════════════════════
+st.header("6️⃣ AQI Forecasting")
+
+forecast_city = st.selectbox("Forecast City", selected_cities, key="forecast_city")
+horizon = st.select_slider("Forecast Horizon", options=[24, 48, 72, 168, 336],
+                            value=72, format_func=lambda x: f"{x}h ({x//24}d)")
+
+# Check if model exists; show training option
+trained_models = list_trained_models()
+has_model = any(m["city"] == forecast_city for m in trained_models)
+
+col_a, col_b, col_c = st.columns([1, 1, 2])
+with col_a:
+    if not has_model:
+        if st.button(f"🚀 Train Model for {forecast_city}"):
+            with st.spinner(f"Training XGBoost for {forecast_city}..."):
+                result = train_and_save_model(forecast_city, use_synthetic=use_synthetic, engine=engine)
+                if "error" in result:
+                    st.error(result["error"])
+                else:
+                    st.success(f"Model trained! RMSE: {result['metrics']['rmse']:.1f}, MAPE: {result['metrics']['mape']:.1f}%")
+                    st.rerun()
+
+with col_b:
+    if has_model:
+        models_for_city = [m for m in trained_models if m["city"] == forecast_city]
+        for m in models_for_city:
+            st.caption(f"Trained: {m['trained_at'][:10]} | Size: {m['size_kb']}KB")
+
+if has_model:
+    with st.spinner("Generating forecast..."):
+        forecast_data = get_forecast_for_dashboard(
+            forecast_city, horizon_hours=horizon,
+            use_synthetic=use_synthetic, engine=engine
+        )
+
+    if forecast_data["status"] == "ok":
+        forecast_df = pd.DataFrame(forecast_data["forecast"])
+
+        with col_c:
+            st.metric("Model", forecast_data["model"])
+            st.metric("Horizon", f"{horizon}h ({horizon//24}d)")
+
+        fig, ax = plt.subplots(figsize=(14, 5))
+
+        actual = df[df["city"] == forecast_city].dropna(subset=["aqi"]).tail(60)
+        ax.plot(actual["date"], actual["aqi"], "o-", color="steelblue",
+                alpha=0.7, label="Historical AQI", markersize=3)
+
+        ax.plot(pd.to_datetime(forecast_df["date"]), forecast_df["prediction"],
+                "s-", color="crimson", label="Forecast", markersize=4, linewidth=2)
+
+        if "lower_bound" in forecast_df.columns:
+            ax.fill_between(pd.to_datetime(forecast_df["date"]),
+                            forecast_df["lower_bound"],
+                            forecast_df["upper_bound"],
+                            alpha=0.2, color="crimson",
+                            label="Confidence (85-115%)")
+
+        ax.axvline(x=actual["date"].max(), color="gray", linestyle="--", alpha=0.5)
+        ax.set_title(f"{forecast_city}: {horizon}h AQI Forecast")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("AQI")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        fig.autofmt_xdate()
+        st.pyplot(fig)
+
+        st.subheader("Forecast Values")
+        st.dataframe(
+            forecast_df.rename(columns={
+                "date": "Date", "prediction": "Predicted AQI",
+                "lower_bound": "Lower Bound", "upper_bound": "Upper Bound"
+            }).set_index("Date"),
+            use_container_width=True
+        )
+
+        for _, row in forecast_df.iterrows():
+            pred = row["prediction"]
+            if pred > 200:
+                st.warning(f"⚠️ **{row['date'][:10]}**: AQI {pred:.0f} — Poor air quality expected")
+            elif pred > 100:
+                st.info(f"ℹ️ **{row['date'][:10]}**: AQI {pred:.0f} — Moderate air quality expected")
+
+    else:
+        st.warning(f"Forecast unavailable: {forecast_data.get('message', 'Unknown error')}")
+        st.info("Train the model using the button above and try again.")
+
+    # Model comparison
+    st.subheader("Model Inventory")
+    all_trained = list_trained_models()
+    if all_trained:
+        st.dataframe(pd.DataFrame(all_trained), use_container_width=True)
+    else:
+        st.info("No models trained yet. Train a model to see it here.")
+
+else:
+    st.info("No trained model for this city. Click 'Train Model' to get started.")
+    st.markdown("""
+    **How it works:**
+    - Uses XGBoost regression with engineered features (lags, rolling stats, seasonals)
+    - Trained on CPCB data (2015–2020) with time-based split
+    - 85-115% confidence intervals
+    - One model per city (trained on-demand)
+    """)
 
 st.markdown("---")
 st.markdown(
