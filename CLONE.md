@@ -70,17 +70,18 @@ This will:
 # Run the full test suite
 pytest tests/ -v
 
-# Expected output: 100 passed
+# Expected output: 144 passed
 ```
 
 ## 6. Run the Dashboard
 
 ```bash
-streamlit run scripts/dashboard_final.py
+streamlit run scripts/dashboard.py
 # Open http://localhost:8501
 ```
 
-You should see a 3-tab dashboard with History, Forecast, and Validation views.
+You should see a 6-page dashboard with Executive Summary, Historical Trends,
+Pollutant Drill-Down, City Deep-Dive, Data Quality, and Forecasting views.
 
 ## 7. Try the API (Optional)
 
@@ -125,12 +126,12 @@ docker compose --profile api up --build
 
 | Layer | Tech | Purpose |
 |-------|------|---------|
-| Shared library | `lib/` | 8 modules: config, db, models, metrics, aqi, charts, logging, utils |
+| Shared library | `lib/` | 12 modules: config, db, models, metrics, aqi, charts, logging, utils, analysis, feature_engineering, ml_pipeline, model_training, model_evaluation, forecasting_service |
 | Dashboards | Streamlit | Interactive AQI visualization |
 | API | FastAPI | REST endpoints for forecasts and validation |
 | ETL | Python scripts | Data ingestion from OpenAQ, Open-Meteo, CSV |
 | Forecasting | Prophet | Time-series AQI predictions through 2030 |
-| Tests | pytest | 100 tests across 6 files, 95% coverage |
+| Tests | pytest | 144 tests across 9 files, 95% coverage |
 | CI | GitHub Actions | Automated test run on push |
 | Deployment | Docker Compose | 4-service stack with PostgreSQL |
 

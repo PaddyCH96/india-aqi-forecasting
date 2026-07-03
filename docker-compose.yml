@@ -33,7 +33,7 @@ services:
       - "8501:8501"
     environment:
       AQI_DB_URL: postgresql://postgres@db:5432/india_air_quality
-    command: streamlit run scripts/dashboard_final.py --server.port=8501 --server.address=0.0.0.0
+    command: streamlit run scripts/dashboard.py --server.port=8501 --server.address=0.0.0.0
 
   api:
     build: .

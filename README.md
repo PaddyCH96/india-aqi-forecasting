@@ -1,275 +1,172 @@
-# India Air Quality Forecasting & Urban Risk Analysis
+# India Air Quality: End-to-End Data & ML Portfolio Project
 
-Forecast AQI up to 2030 for Indian cities using Prophet time-series models. Includes interactive dashboards, a REST API, Docker deployment, and CI/CD — built for urban planning, public health, and real estate risk assessment.
+**Forecast AQI across 26 Indian cities with 0.8–3.2% MAPE using XGBoost + engineered features. Includes EDA, interactive dashboard, REST API, and Docker deployment.**
+
+[View Case Study →](CASE_STUDY.md) · [Key Insights →](INSIGHTS.md) · [GitHub →](https://github.com/PaddyCH96/india-aqi-forecasting)
+
+---
+
+## Key Results
+
+| City | XGBoost MAPE | Training Data | Data Quality |
+|------|:-----------:|:------------:|:-----------:|
+| Bengaluru | **0.8%** | 1,362 days | Excellent |
+| Hyderabad | **0.9%** | 1,332 days | Excellent |
+| Chennai | **0.9%** | 1,336 days | Very Good |
+| Delhi | **1.0%** | 1,451 days | Excellent |
+| Mumbai | **2.9%** | 227 days | **Critical gaps** |
+| Kolkata | **3.2%** | 206 days | Limited |
+
+**The system beats naive baselines by 10–20×** (Moving Average: 12–25% MAPE, Seasonal Naive: 31–64% MAPE).
+
+---
 
 ## Features
 
-- **Dashboards** — Streamlit-based interactive visualizations (history, forecast, validation, multi-city comparison)
-- **REST API** — FastAPI endpoints for forecasts, validation, and city metadata (auto-generated docs at `/docs`)
-- **Batch Forecasting** — Multi-city Prophet pipeline with trend analysis (improving/worsening cities)
-- **Model Validation** — 3-model comparison (full vs pre-COVID vs skip-COVID) with cross-validation
-- **Data Ingestion** — Fetches from OpenAQ and Open-Meteo APIs with synthetic data fallback
-- **Docker Deployment** — 4-service compose: PostgreSQL, seed, dashboard, optional API
-- **CI Pipeline** — GitHub Actions runs 100 tests with 95% coverage on push
-- **Shared Library** — `lib/` package as a single source of truth for all business logic
-- **ML Forecasting** — XGBoost regression with feature engineering (lags, rolling stats, seasonals, interactions) — per-city models achieve 0.8–3.2% MAPE
-- **Analytics Dashboard** — 6-page Streamlit app: executive summary, historical trends, pollutant drill-down, city deep-dive, data quality, and forecasting
+- **6-page analytics dashboard** — Executive summary, trends, pollutant drill-down, city deep-dive, data quality, ML forecasting
+- **XGBoost + Random Forest models** — 66 features per city (lags, rolling stats, seasonal cycles, pollutant interactions)
+- **Data provenance** — Every row tagged as real/synthetic with source tracking
+- **REST API** — FastAPI with `/forecast/{city}`, `/validate/{city}`, `/data/freshness`
+- **144 tests** across 9 files, 95% coverage, Ruff-clean
+- **Docker deployment** — 4-service compose (PostgreSQL, seed, dashboard, API)
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Data Sources                                                   │
-│  ┌──────────┐  ┌────────────┐  ┌─────────────────────────┐     │
-│  │ OpenAQ   │  │ Open-Meteo │  │ Synthetic (fallback)    │     │
-│  └────┬─────┘  └─────┬──────┘  └───────────┬─────────────┘     │
-│       │              │                      │                   │
-│       └──────────────┴──────────────────────┘                   │
-│                           │                                     │
-│                    ┌──────▼──────┐                              │
-│                    │  seed_data  │                              │
-│                    └──────┬──────┘                              │
-│                           │                                     │
-│                    ┌──────▼──────┐                              │
-│                    │  PostgreSQL │                              │
-│                    │  (city_day, │                              │
-│                    │   hourly)   │                              │
-│                    └──┬──────┬───┘                              │
-│           ┌───────────┘      └───────────┐                      │
-│           │                              │                      │
-│    ┌──────▼──────┐              ┌────────▼────────┐           │
-│    │  Dashboards │              │  FastAPI API    │           │
-│    │  (Streamlit)│              │  /forecast       │           │
-│    │  :8501      │              │  /validate       │           │
-│    │  + Forecast │              │  /cities/:health │           │
-│    │    Page     │              │  /data/freshness │           │
-│    └──────┬──────┘              └────────┬────────┘           │
-│           │                              │                     │
-│    ┌──────▼──────────────────────────────▼──────────┐         │
-│    │         ML Layer (lib/)                        │         │
-│    │  feature_engineering → ml_pipeline → model_training   │
-│    │  model_evaluation → forecasting_service         │         │
-│    └─────────────────────────────────────────────────┘         │
-│                                          │                     │
-│  User ◄──── Browser/curl ◄──────────────┘                     │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────┐    ┌─────────────┐    ┌──────────────────┐
+│  CPCB CSVs   │    │  OpenAQ API │    │  Synthetic Data  │
+│  250MB, 5 f. │    │  (real-time)│    │  (fallback)      │
+└──────┬───────┘    └──────┬──────┘    └────────┬─────────┘
+       │                   │                    │
+       └───────────────────┼────────────────────┘
+                           ▼
+              ┌────────────────────────┐
+              │   PostgreSQL (5 tables) │
+              │  city_measurements      │
+              │  city_hourly           │    ← 700k+ rows, provenance-tracked
+              │  station_day, stations │
+              └───┬────────────────┬───┘
+                  │                │
+         ┌────────▼───┐    ┌──────▼────────┐
+         │  Dashboards │    │  FastAPI API  │
+         │  Streamlit  │    │  /forecast    │
+         │  :8501      │    │  /validate    │
+         └──────┬──────┘    └──────┬────────┘
+                │                  │
+         ┌──────▼──────────────────▼──────────┐
+         │         ML Forecasting Layer        │
+         │                                     │
+         │   feature_engineering (66 feats)    │
+         │   → ml_pipeline (time split)        │
+         │   → model_training (XGB, RF, MA)    │
+         │   → forecasting_service (inference) │
+         └─────────────────────────────────────┘
 ```
 
-## Prerequisites
+**Data flow:** Raw CSVs/APIs → `seed_data.py` → PostgreSQL → `lib/` processing → Dashboard/API/Forecast
 
-- Python 3.11+
-- PostgreSQL (if running locally)
-- Docker + Docker Compose (optional, for containerized deployment)
+---
 
-## Quick Start (Docker)
+## Tech Stack
 
-```bash
-docker compose up --build
-# Dashboard: http://localhost:8501
-```
+| Layer | Technology |
+|-------|-----------|
+| Models | XGBoost, scikit-learn (Random Forest), Prophet |
+| Dashboard | Streamlit + matplotlib |
+| API | FastAPI + uvicorn |
+| Database | PostgreSQL (SQLAlchemy + psycopg2) |
+| Data | pandas, numpy |
+| Infrastructure | Docker, Docker Compose |
+| CI/CD | GitHub Actions (pytest, ruff) |
+| Testing | pytest, pytest-cov (144 tests) |
 
-With REST API:
+---
 
-```bash
-docker compose --profile api up --build
-# Dashboard: http://localhost:8501
-# API docs: http://localhost:8000/docs
-# Health check: http://localhost:8000/health
-```
-
-## Local Setup
+## Quick Start
 
 ```bash
-# 1. Clone and enter
+# Docker (easiest — no local PostgreSQL needed)
 git clone https://github.com/PaddyCH96/india-aqi-forecasting.git
 cd india-air-quality
+docker compose up --build
+# Dashboard at http://localhost:8501
 
-# 2. Virtual environment
-python3 -m venv venv
-source venv/bin/activate
+# Or with API:
+docker compose --profile api up --build
+# API docs at http://localhost:8000/docs
+```
 
-# 3. Install dependencies
+### Local Setup
+
+```bash
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-
-# 4. Configure database
 cp .env.example .env
-# Edit .env if using a non-default PostgreSQL URL
-# Default: postgresql://postgres:postgres@localhost:5432/india_air_quality
-
-# 5. Create database and seed
 createdb india_air_quality
-python scripts/seed_data.py   # bootstraps from CSV or generates synthetic data
-```
-
-## Usage
-
-### Dashboards
-
-```bash
-# 6-page unified analytics dashboard (recommended)
+python scripts/seed_data.py     # bootstraps from CSV or generates synthetic
 streamlit run scripts/dashboard.py
-
-# Legacy dashboards
-streamlit run scripts/dashboard_final.py      # 3-tab (History, Forecast, Validation)
-streamlit run scripts/dashboard_complete.py    # 4-tab (adds Multi-City Comparison)
 ```
 
-### REST API
+---
 
-```bash
-uvicorn scripts.api:app --reload --port 8000
-```
+## Dashboard Pages
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Service health + last data timestamp |
-| `GET /cities` | List all cities with data summaries |
-| `GET /forecast/{city}` | Prophet forecast for a city |
-| `GET /validate/{city}` | Validation metrics (MAPE, RMSE, MAE) |
+| # | Page | What It Shows |
+|---|------|-------------|
+| 1 | Executive Summary | National snapshot, KPI cards, city ranking |
+| 2 | Historical Trends | Multi-city trends, seasonal decomposition, monthly averages |
+| 3 | Pollutant Drill-Down | Per-pollutant distributions, 9×9 correlation matrix, diurnal patterns |
+| 4 | City Deep-Dive | Single-city history, year-over-year bars, pollutant summary table |
+| 5 | Data Quality | Missing data heatmap, completeness warnings by city |
+| 6 | Forecasting | 24h–336h XGBoost forecast with confidence bands + AQI alerts |
 
-### Data Ingestion
+---
 
-```bash
-# Fetch from OpenAQ API (real AQI data)
-python scripts/fetch_openaq.py
+## Key Insights
 
-# Fetch from Open-Meteo API (recent AQI data)
-python scripts/fetch_recent_aqi.py
-```
+- **Delhi is an extreme outlier** — mean AQI 259.5 is 2.7× higher than the next worst city
+- **PM2.5 alone predicts AQI with r=0.97** — other pollutants are largely redundant for forecasting
+- **Mumbai has a monitoring crisis** — 61% of daily AQI records missing, worst of 26 cities
+- **Winter pollution penalty varies by geography** — 2.5× in the north, 1.3× in the south
+- **Data quality determines accuracy** — not model choice. Better monitoring > better algorithms
 
-### Forecasting Pipelines
-
-```bash
-# Batch forecast for all eligible cities
-python scripts/multi_city_pipeline.py
-
-# Model validation (3-model comparison + cross-validation)
-python scripts/validate_prophet.py
-```
-
-## Testing
-
-```bash
-# Run all tests
-pytest tests/ -v
-
-# With coverage
-pytest tests/ -v --cov=lib/ --cov-report=term
-
-# Run specific test file
-pytest tests/test_db.py -v
-```
+---
 
 ## Project Structure
 
 ```
-india-air-quality/
-├── lib/                    # Shared library (single source of truth)
-│   ├── config.py           #   App configuration & constants
-│   ├── db.py               #   Database connection & queries
-│   ├── models.py           #   Prophet model wrappers
-│   ├── metrics.py          #   MAPE, RMSE, MAE, evaluation
-│   ├── aqi.py              #   PM2.5→AQI conversion & synthetic data
-│   ├── charts.py           #   19 reusable chart functions (6 orig + 13 EDA)
-│   ├── logging.py          #   Logging setup
-│   ├── utils.py            #   Retry decorator, URL validation
-│   ├── analysis.py         #   15 EDA functions (city ranking, distributions, etc.)
-│   ├── feature_engineering.py  # Lag, rolling, seasonal, interaction features
-│   ├── ml_pipeline.py      # Dataset builder, time-based split, feature selection
-│   ├── model_training.py   # 5 model trainers (MA, SN, XGBoost, RF, Prophet)
-│   ├── model_evaluation.py # Cross-city eval, error analysis, seasonal breakdown
-│   └── forecasting_service.py # Train/save/load/predict for dashboard integration
-├── scripts/                # Runnable scripts
-│   ├── api.py              #   FastAPI REST API
-│   ├── dashboard.py        #   6-page unified analytics dashboard (recommended)
-│   ├── dashboard_final.py  #   3-tab Streamlit dashboard (legacy)
-│   ├── dashboard_complete.py # 4-tab feature-rich dashboard (legacy)
-│   ├── seed_data.py        #   Database bootstrap
-│   ├── fetch_openaq.py     #   OpenAQ ingestion
-│   ├── fetch_recent_aqi.py #   Open-Meteo ingestion
-│   ├── ingest_hourly.py    #   Hourly data ingestion pipeline
-│   ├── multi_city_pipeline.py  # Batch forecasting
-│   └── validate_prophet.py #   Model validation
-├── tests/                  # 144 tests across 9 files
-├── docs/                   # Architecture, deployment, testing, handover
-├── notebooks/              # Jupyter notebooks
-├── sql/                    # Analytical SQL queries
-├── data/raw/               # Raw CSV datasets (gitignored)
-├── data/processed/         # Generated data (gitignored)
-├── outputs/                # Charts, forecasts (gitignored)
-├── Dockerfile              # Python 3.11-slim container
-├── docker-compose.yml      # 4 services (db, seed, dashboard, api)
-├── .env.example            # Environment template
-├── requirements.txt        # Pinned dependencies
-└── release_report.md       # Release validation summary
+├── lib/                 # Shared library (12 modules)
+│   ├── config.py        #   Constants
+│   ├── db.py            #   Parameterized SQL queries
+│   ├── feature_engineering.py  # 66 features per city
+│   ├── model_training.py       # 5 model trainers
+│   ├── forecasting_service.py  # Inference for dashboard
+│   ├── charts.py, analysis.py  # Visualization + EDA
+│   └── ...                     # metrics, aqi, models, utils, logging
+├── scripts/             # Runnable applications
+│   ├── dashboard.py     #   6-page unified dashboard
+│   ├── api.py           #   FastAPI REST API
+│   ├── seed_data.py     #   Database bootstrap
+│   └── ingest_hourly.py #   Hourly data pipeline
+├── tests/               # 144 tests
+├── docs/                # Architecture, EDA, deployment, ML eval
+├── models/              # Trained models (*.pkl, generated)
+├── CASE_STUDY.md        # Portfolio narrative
+├── INSIGHTS.md          # Top 5 findings with evidence
+└── Dockerfile + docker-compose.yml
 ```
 
-## Configuration
+---
 
-All configuration in `lib/config.py`:
+## Reading Order for Recruiters
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_URL` | `postgresql://postgres:postgres@localhost:5432/india_air_quality` | Database URL |
-| `TRAIN_CUTOFF` | `2023-01-01` | Train/test split date |
-| `FORECAST_PERIODS` | 2190 | Forecast periods (6 years daily) |
-| `FORECAST_YEARS` | 6 | Forecast horizon in years |
-| `PROPHET_PARAMS` | `yearly_seasonality=True` | Default Prophet parameters |
+1. **[Case Study](CASE_STUDY.md)** — Narrative overview of the project (10 min read)
+2. **[Key Insights](INSIGHTS.md)** — Five defensible findings with evidence (5 min read)
+3. **Dashboard** — Run `streamlit run scripts/dashboard.py` to see it live
+4. **Code** — `lib/` for core logic, `tests/` for test coverage
 
-Set via `.env`:
-```env
-DB_URL=postgresql://user:pass@host:5432/india_air_quality
-```
+---
 
-## Deployment
-
-### Docker (Production)
-
-```bash
-# Full stack
-docker compose --profile api up --build -d
-
-# Scale API
-docker compose --profile api up --build -d --scale api=3
-```
-
-### Manual (Single Service)
-
-```bash
-# Dashboard
-streamlit run scripts/dashboard_final.py --server.port 8501 --server.address 0.0.0.0
-
-# API
-uvicorn scripts.api:app --host 0.0.0.0 --port 8000 --workers 4
-```
-
-## Limitations
-
-- **PostgreSQL dependency** — all dashboards and pipelines require a running Postgres instance
-- **Synthetic data fallback** — when no real CSV is available, `seed_data.py` generates plausible synthetic data
-- **Single-regressor model** — Prophet uses only yearly seasonality (weather regressors were tested but showed unstable correlations across the COVID period)
-- **MAPE range** — current accuracy: Hyderabad 15.6%, Mumbai 13.05%
-- **No real-time updates** — dashboards show static data until re-run
-
-## Contributing
-
-1. Branch off `main`: `git checkout -b feature/your-feature`
-2. Make changes, add tests in `tests/`
-3. Run tests: `pytest tests/ -v --cov=lib/`
-4. Run linter: `ruff check lib/ scripts/ tests/`
-5. Submit a pull request
-
-## Key Insights
-
-- Clear seasonal AQI spikes across most Tier-1 cities
-- Long-term upward AQI trend in high-growth urban zones
-- Hyderabad shows consistent upward AQI trend post-2018, indicating increasing environmental risk in high-growth corridors
-- Significant variance across cities suggests localized policy intervention is required
-
-## Related Resources
-
-- `docs/architecture.md` — System architecture and data flow
-- `docs/deployment.md` — Production deployment guide
-- `docs/testing.md` — Testing strategy and coverage
-- `docs/handover.md` — Full project handover documentation
-- `release_report.md` — Release validation (100 tests, 95% coverage)
+*CPCB data 2015–2020 · 26 cities · 12 pollutants · 5.5 years. Built with open data and open source.*

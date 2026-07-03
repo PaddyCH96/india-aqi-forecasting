@@ -12,3 +12,6 @@ fastapi>=0.110.0
 uvicorn>=0.29.0
 pydantic>=2.5.0
 pytest-cov>=4.1.0
+scikit-learn>=1.5.0
+xgboost>=2.0.0
+statsmodels>=0.14.0

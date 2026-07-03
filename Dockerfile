@@ -16,4 +16,4 @@ EXPOSE 8000
 
 ENV AQI_DB_URL=postgresql://postgres@db:5432/india_air_quality
 
-CMD ["streamlit", "run", "scripts/dashboard_final.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "scripts/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
