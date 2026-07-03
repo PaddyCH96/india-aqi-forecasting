@@ -20,20 +20,35 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="India AQI Forecast", page_icon="🏭", layout="wide")
 st.title("🏭 India AQI Forecasting Dashboard")
-st.markdown("**Interactive forecasts for Indian cities (2015-2030)**")
+st.markdown("**Interactive forecasts for Indian cities**")
 
 engine = get_engine()
 
-@st.cache_data
-def get_cities():
-    return get_cities_with_data_summary(engine)
-
-cities_df = get_cities()
-city_list = cities_df['city'].tolist()
+SYNTHETIC_NOTE = (
+    "⚠️ Values after July 2020 are synthetic (simulated) data. "
+    "Real CPCB data covers 2015-2020."
+)
 
 st.sidebar.header("📊 Controls")
+use_synthetic = st.sidebar.checkbox(
+    "Include synthetic 2020-2024 data",
+    value=False,
+    help="Real CPCB data: 2015-2020. Synthetic extends to 2024."
+)
+
+@st.cache_data
+def get_cities(syn):
+    return get_cities_with_data_summary(engine, use_synthetic=syn)
+
+cities_df = get_cities(use_synthetic)
+city_list = cities_df['city'].tolist()
+
 st.sidebar.write(f"Found {len(city_list)} cities with data")
 st.sidebar.caption("Min 1000 days required")
+
+if not city_list:
+    st.warning("No cities found. Try enabling synthetic data in sidebar.")
+    st.stop()
 
 selected_city = st.sidebar.selectbox(
     "🌆 Select City",
@@ -46,14 +61,18 @@ st.sidebar.write("**Data available:**")
 st.sidebar.write(f"• Days: {city_info['days']:,}")
 st.sidebar.write(f"• From: {city_info['start_date']}")
 st.sidebar.write(f"• To: {city_info['end_date']}")
+
+if use_synthetic:
+    st.sidebar.warning(SYNTHETIC_NOTE)
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("**About:** AQI forecasting using Prophet")
 
 @st.cache_data
-def get_city_data(city):
-    return load_city_data(engine, city)
+def get_city_data(city, syn):
+    return load_city_data(engine, city, use_synthetic=syn)
 
-df = get_city_data(selected_city)
+df = get_city_data(selected_city, use_synthetic)
 
 st.markdown(f"## Currently viewing: **{selected_city}**")
 
@@ -86,7 +105,7 @@ with tab1:
         **Chart Guide:**
         - Blue line: Daily AQI measurements
         - Red dots: Yearly averages
-        - Gray shading: COVID-19 lockdown period (reduced traffic/industrial activity)
+        - Gray shading: COVID-19 lockdown period (reduced activity)
         - Orange dashed: Moderate threshold (100)
         - Red dashed: Poor threshold (200)
         """)
@@ -119,7 +138,7 @@ with tab2:
         )
 
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Current (2024)", f"{current_2024:.1f}")
+        col1.metric("Current", f"{current_2024:.1f}")
         col2.metric("2030 Estimate", f"{pred_2030:.1f}")
         col3.metric("Range (95% CI)", f"{pred_2030_lower:.0f} - {pred_2030_upper:.0f}")
 
@@ -135,6 +154,9 @@ with tab2:
         fig2, ax2 = plt.subplots(figsize=(12, 5))
         plot_monthly_breakdown(ax2, forecast, 2030)
         st.pyplot(fig2)
+
+    if not use_synthetic:
+        st.info("ℹ️ Using real data only (2015-2020). Forecast uncertainty is higher without recent data.")
 
 with tab3:
     st.header(f"Model Validation: {selected_city}")
@@ -164,7 +186,7 @@ with tab3:
             **Interpretation:**
             - **MAPE of {mape:.1f}%** means predictions are typically within ±{mape:.0f}% of actual values
             - For a prediction of 100 AQI, expect actual value between **{100 * (1 - mape / 100):.0f} and {100 * (1 + mape / 100):.0f}**
-            - Model trained on {len(train)} days, tested on {len(test)} days (2023-2024)
+            - Model trained on {len(train)} days, tested on {len(test)} days
             """)
 
             fig, ax = plt.subplots(figsize=(12, 6))
@@ -175,8 +197,8 @@ with tab3:
             plot_scatter_accuracy(ax2, results, mape)
             st.pyplot(fig2)
     else:
-        st.warning(f"⚠️ Insufficient 2023-2024 data for {selected_city} validation")
-        st.info("Need at least 30 days of 2023-2024 data to validate model performance.")
+        st.warning(f"⚠️ Insufficient test data for {selected_city} validation")
+        st.info("Need at least 30 days of test data to validate model performance.")
 
 with tab4:
     st.header("Multi-City Comparison")
@@ -184,7 +206,7 @@ with tab4:
 
     comparison_data = []
     for city in city_list[:10]:
-        city_df = get_city_data(city)
+        city_df = get_city_data(city, use_synthetic)
         train_c = city_df[city_df['ds'] < TRAIN_CUTOFF]
         test_c = city_df[city_df['ds'] >= TRAIN_CUTOFF]
 
@@ -196,8 +218,8 @@ with tab4:
                 comparison_data.append({
                     'City': city,
                     'MAPE (%)': round(mape_c, 1),
-                    '2024 Avg': round(
-                        city_df[city_df['ds'] >= '2024-01-01']['y'].mean(), 1
+                    '2020 Avg': round(
+                        city_df[city_df['ds'].dt.year == 2020]['y'].mean(), 1
                     ),
                     'Data Quality': 'High' if mape_c < 20 else 'Medium' if mape_c < 30 else 'Low',
                 })
@@ -211,17 +233,12 @@ with tab4:
         fig, ax = plt.subplots(figsize=(10, 6))
         plot_comparison_barh(ax, comp_df)
         st.pyplot(fig)
-
-        st.info(
-            f"**{selected_city} ranking:** "
-            f"Currently viewing one of {len(comp_df)} cities with validation data"
-        )
     else:
         st.info("Run validation on individual cities to see comparison")
 
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
-    <small>Built with Streamlit + Prophet | India AQI Forecasting Project | 2015-2030</small>
+    <small>Built with Streamlit + Prophet | India AQI Forecasting | CPCB Data 2015-2020</small>
 </div>
 """, unsafe_allow_html=True)

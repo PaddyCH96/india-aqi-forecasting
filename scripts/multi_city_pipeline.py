@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+"""Multi-city batch forecasting pipeline.
+
+Runs Prophet on all eligible cities using real data only by default.
+Use --synthetic flag to include synthetic 2020-2024 data.
+"""
+
+import argparse
 import pandas as pd
 from tqdm import tqdm
 from lib.logging import setup_logger
@@ -7,17 +15,22 @@ from lib.metrics import evaluate_forecast
 
 logger = setup_logger("multi-city-pipeline")
 
+parser = argparse.ArgumentParser(description="Multi-city AQI forecasting pipeline")
+parser.add_argument("--synthetic", action="store_true", help="Include synthetic 2020-2024 data")
+args = parser.parse_args()
+use_synthetic = args.synthetic
+
 engine = get_engine()
 
-logger.info("Fetching eligible cities...")
-cities_df = get_eligible_cities(engine)
+logger.info(f"Fetching eligible cities (synthetic={'yes' if use_synthetic else 'no'})...")
+cities_df = get_eligible_cities(engine, use_synthetic=use_synthetic)
 eligible = cities_df['city'].tolist()
 logger.info(f"Found {len(eligible)} eligible cities: {eligible}")
 
 
 def forecast_city(city_name: str):
     try:
-        df = load_city_data(engine, city_name)
+        df = load_city_data(engine, city_name, use_synthetic=use_synthetic)
 
         train = df[df['ds'] < '2023-01-01']
         test = df[df['ds'] >= '2023-01-01']
@@ -31,12 +44,12 @@ def forecast_city(city_name: str):
 
         _, forecast_2030 = train_and_forecast(df)
         pred_2030 = forecast_2030[forecast_2030['ds'].dt.year == 2030]['yhat'].mean()
-        recent = df[df['ds'] >= '2024-01-01']['y'].mean()
+        recent = df[df['ds'] >= '2019-01-01']['y'].mean()
 
         return {
             'city': city_name,
             'mape': round(mape, 2),
-            'avg_aqi_2024': round(recent, 1),
+            'avg_aqi_recent': round(recent, 1),
             'pred_aqi_2030': round(pred_2030, 1),
             'trend': 'improving' if pred_2030 < recent else 'worsening'
         }
@@ -61,6 +74,7 @@ print("\n" + "=" * 70)
 print("MULTI-CITY FORECAST RESULTS")
 print("=" * 70)
 print(f"\nTotal cities processed: {len(df_results)}")
+print(f"Data source: {'Real + Synthetic' if use_synthetic else 'Real CPCB only (2015-2020)'}")
 print(f"Average MAPE: {df_results['mape'].mean():.1f}%")
 print(f"Best: {df_results['mape'].min():.1f}% ({df_results.loc[df_results['mape'].idxmin(), 'city']})")
 print(f"Worst: {df_results['mape'].max():.1f}% ({df_results.loc[df_results['mape'].idxmax(), 'city']})")
@@ -68,7 +82,7 @@ print(f"Worst: {df_results['mape'].max():.1f}% ({df_results.loc[df_results['mape
 print("\n" + "-" * 70)
 print("CITY RANKINGS (by forecast accuracy):")
 print("-" * 70)
-print(df_results[['city', 'mape', 'avg_aqi_2024', 'pred_aqi_2030', 'trend']].to_string(index=False))
+print(df_results[['city', 'mape', 'avg_aqi_recent', 'pred_aqi_2030', 'trend']].to_string(index=False))
 
 print("\n" + "=" * 70)
 print("🏆 MOST FORECASTABLE (MAPE < 15%):")

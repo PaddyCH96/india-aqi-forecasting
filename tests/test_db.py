@@ -7,11 +7,13 @@ import pandas as pd
 from lib.db import (
     get_engine,
     load_city_data,
+    load_city_pollutants,
     get_cities_with_recent_data,
     get_cities_with_data_summary,
     get_eligible_cities,
     count_recent_rows,
     insert_city_data,
+    get_data_freshness,
 )
 
 
@@ -74,6 +76,50 @@ class TestLoadCityData:
             result = load_city_data(mock_engine, "Delhi")
             assert pd.api.types.is_datetime64_any_dtype(result["ds"])
 
+    def test_excludes_synthetic_by_default(self):
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql") as mock_read_sql:
+            mock_read_sql.return_value = _empty_aqi_df()
+            load_city_data(mock_engine, "Delhi")
+            sql_text = str(mock_read_sql.call_args[0][0])
+            assert "AND NOT is_synthetic" in sql_text
+
+    def test_includes_synthetic_when_requested(self):
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql") as mock_read_sql:
+            mock_read_sql.return_value = _empty_aqi_df()
+            load_city_data(mock_engine, "Delhi", use_synthetic=True)
+            sql_text = str(mock_read_sql.call_args[0][0])
+            assert "AND NOT is_synthetic" not in sql_text
+
+
+class TestLoadCityPollutants:
+    def test_returns_all_pollutant_columns(self):
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql") as mock_read_sql:
+            mock_read_sql.return_value = pd.DataFrame({
+                "date": ["2023-01-01"],
+                "pm2_5": [80.0],
+                "pm10": [120.0],
+                "no2": [40.0],
+                "aqi": [100.0],
+                "aqi_bucket": ["Moderate"],
+                "is_synthetic": [False],
+                "data_source": ["CPCB"],
+            })
+            result = load_city_pollutants(mock_engine, "Delhi")
+            assert "pm2_5" in result.columns
+            assert "aqi_bucket" in result.columns
+            assert len(result) == 1
+
+    def test_excludes_synthetic_by_default(self):
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql") as mock_read_sql:
+            mock_read_sql.return_value = pd.DataFrame({"date": []})
+            load_city_pollutants(mock_engine, "Delhi")
+            sql_text = str(mock_read_sql.call_args[0][0])
+            assert "AND NOT is_synthetic" in sql_text
+
 
 class TestGetCitiesWithRecentData:
     def test_returns_list(self):
@@ -101,7 +147,7 @@ class TestGetCitiesWithDataSummary:
                 "city": ["Delhi", "Mumbai"],
                 "days": [2000, 1800],
                 "start_date": ["2015-01-01", "2015-06-01"],
-                "end_date": ["2024-12-31", "2024-12-31"],
+                "end_date": ["2020-07-01", "2020-07-01"],
             })
             result = get_cities_with_data_summary(mock_engine)
             assert len(result) == 2
@@ -131,7 +177,7 @@ class TestGetEligibleCities:
             mock_read_sql.return_value = pd.DataFrame({
                 "city": ["Delhi", "Hyderabad"],
                 "total_days": [2000, 1800],
-                "end_date": ["2024-12-31", "2024-12-31"],
+                "end_date": ["2020-07-01", "2020-07-01"],
             })
             result = get_eligible_cities(mock_engine)
             assert len(result) == 2
@@ -181,6 +227,18 @@ class TestCountRecentRows:
         executed_text = mock_conn.execute.call_args[0][0]
         assert "2020-07-01" in str(executed_text)
 
+    def test_excludes_synthetic_by_default(self):
+        mock_engine = MagicMock()
+        mock_conn = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 0
+        mock_conn.execute.return_value = mock_result
+        mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+        count_recent_rows(mock_engine)
+        executed_text = mock_conn.execute.call_args[0][0]
+        assert "AND NOT is_synthetic" in str(executed_text)
+
 
 class TestInsertCityData:
     def test_renames_pm25_column(self):
@@ -202,6 +260,26 @@ class TestInsertCityData:
             inserted_df = captured[0]
             assert "pm2_5" in inserted_df.columns
             assert "pm25" not in inserted_df.columns
+
+    def test_adds_provenance_columns(self):
+        mock_engine = MagicMock()
+        df = pd.DataFrame({
+            "date": ["2023-01-01"],
+            "city": ["TestCity"],
+            "pm25": [50.0],
+        })
+
+        captured = []
+        def capture_self(self, *args, **kwargs):
+            captured.append(self)
+
+        with patch("lib.db.pd.DataFrame.to_sql", autospec=True, side_effect=capture_self):
+            insert_city_data(mock_engine, df, data_source="OpenAQ", is_synthetic=False)
+
+            assert len(captured) == 1
+            inserted_df = captured[0]
+            assert inserted_df["data_source"].iloc[0] == "OpenAQ"
+            assert not inserted_df["is_synthetic"].iloc[0]
 
     def test_calls_to_sql_with_append(self):
         mock_engine = MagicMock()
@@ -238,3 +316,30 @@ class TestInsertCityData:
             inserted_df = captured[0]
             assert "pm2_5" in inserted_df.columns
             assert "pm25" not in inserted_df.columns
+
+
+class TestGetDataFreshness:
+    def test_returns_summary_dict(self):
+        mock_engine = MagicMock()
+        mock_conn = MagicMock()
+
+        scalar_results = iter([39401, 29531, 9870, 26, "2025-01-01", "2020-07-01"])
+
+        def mock_scalar():
+            return next(scalar_results)
+
+        mock_cursor = MagicMock()
+        mock_cursor.scalar = mock_scalar
+        mock_cursor.fetchall.return_value = [("CPCB", 29531), ("synthetic", 9870)]
+
+        def mock_execute(sql, *a, **kw):
+            return mock_cursor
+
+        mock_conn.execute = mock_execute
+        mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+        result = get_data_freshness(mock_engine)
+        assert result["total_rows"] == 39401
+        assert result["real_rows"] == 29531
+        assert result["synthetic_rows"] == 9870
+        assert result["cities"] == 26

@@ -12,24 +12,42 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="India AQI Forecast", page_icon="🏭", layout="wide")
 st.title("🏭 India AQI Forecasting Dashboard")
-st.markdown("**Interactive forecasts for Indian cities (2015-2030)**")
+st.markdown("**Interactive forecasts for Indian cities**")
 
 engine = get_engine()
 
-@st.cache_data
-def get_cities():
-    return get_cities_with_recent_data(engine)
-
-cities = get_cities()
+SYNTHETIC_NOTE = (
+    "⚠️ **Synthetic Data**: Values after July 2020 are simulated. "
+    "Real CPCB data covers 2015-2020."
+)
 
 st.sidebar.header("📊 Controls")
+use_synthetic = st.sidebar.checkbox(
+    "Include synthetic 2020-2024 data",
+    value=False,
+    help="When unchecked, only real CPCB data (2015-2020) is used"
+)
+
+@st.cache_data
+def get_cities(syn):
+    return get_cities_with_recent_data(engine, use_synthetic=syn)
+
+cities = get_cities(use_synthetic)
+
+if not cities:
+    st.warning("No cities with recent data found. Try enabling synthetic data.")
+    st.stop()
+
 selected_city = st.sidebar.selectbox("Select City", cities)
 
 @st.cache_data
-def get_city_data(city):
-    return load_city_data(engine, city)
+def get_city_data(city, syn):
+    return load_city_data(engine, city, use_synthetic=syn)
 
-df = get_city_data(selected_city)
+df = get_city_data(selected_city, use_synthetic)
+
+if use_synthetic:
+    st.sidebar.warning(SYNTHETIC_NOTE)
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("City", selected_city)
@@ -66,10 +84,10 @@ with tab2:
         model, forecast = train_and_forecast(df)
 
         pred_2030 = forecast[forecast['ds'].dt.year == 2030]['yhat'].mean()
-        current_avg = df[df['ds'] >= '2024-01-01']['y'].mean()
+        current_avg = df[df['ds'] >= '2019-01-01']['y'].mean()
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Current (2024)", f"{current_avg:.1f}")
+        col1.metric("Recent Avg", f"{current_avg:.1f}")
         col2.metric("2030 Prediction", f"{pred_2030:.1f}")
         trend = "📉 Improving" if pred_2030 < current_avg else "📈 Worsening"
         col3.metric("Trend", trend)
@@ -82,6 +100,9 @@ with tab2:
         fig2, ax2 = plt.subplots(figsize=(10, 4))
         plot_monthly_breakdown(ax2, forecast, 2030)
         st.pyplot(fig2)
+
+    if not use_synthetic:
+        st.info(SYNTHETIC_NOTE)
 
 with tab3:
     st.header("Model Validation")
@@ -98,7 +119,7 @@ with tab3:
             col1, col2, col3 = st.columns(3)
             col1.metric("MAPE", f"{mape:.1f}%")
             col2.metric("RMSE", f"{metrics['rmse']:.1f}")
-            col3.metric("Test Period", "2023-2024")
+            col3.metric("Test Period", "2023-2024" if use_synthetic else "2020")
 
             quality, _ = classify_model_quality(mape)
             st.info(
@@ -111,7 +132,7 @@ with tab3:
             plot_validation(ax, results, mape, selected_city)
             st.pyplot(fig)
     else:
-        st.warning("Insufficient 2023-2024 data for validation")
+        st.warning("Insufficient test data for validation")
 
 st.markdown("---")
-st.markdown("Built with **Streamlit + Prophet** | Data: India Air Quality (2015-2024)")
+st.markdown("Built with **Streamlit + Prophet** | Data: India CPCB Air Quality (2015-2020)")
