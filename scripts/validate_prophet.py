@@ -3,9 +3,8 @@
 Prophet Model Validation with Cross-Validation
 Compares: Basic vs Pre-COVID vs Full Dataset models
 """
-import pandas as pd
+import numpy as np
 from prophet.diagnostics import cross_validation, performance_metrics
-import matplotlib.pyplot as plt
 
 from lib.logging import setup_logger
 from lib.db import get_engine, load_city_data
@@ -63,7 +62,7 @@ def prophet_cross_validation(df, model_name):
 
     df_p = performance_metrics(df_cv)
 
-    print(f"\nCross-Validation Results (365-day horizon):")
+    print("\nCross-Validation Results (365-day horizon):")
     print(f"  MAPE: {df_p['mape'].mean():.1f}% (±{df_p['mape'].std():.1f}%)")
     print(f"  RMSE: {df_p['rmse'].mean():.1f} (±{df_p['rmse'].std():.1f})")
     print(f"  Coverage (yhat_lower/upper): {df_p['coverage'].mean():.2f}")
@@ -72,7 +71,6 @@ def prophet_cross_validation(df, model_name):
 
 
 def main():
-    import numpy as np
 
     engine = get_engine()
 
@@ -119,13 +117,13 @@ def main():
     print(f"{'=' * 60}")
     best = min([r for r in [results1, results2, results3] if r], key=lambda x: x['mape'])
     print(f"Best model: {best['model_name']} (MAPE: {best['mape']:.1f}%)")
-    print(f"\nFor 2030 forecasting:")
+    print("\nFor 2030 forecasting:")
     print(f"  - Expected error: ±{best['mape']:.0f}%")
-    print(f"  - If 2030 prediction is 100 AQI:")
+    print("  - If 2030 prediction is 100 AQI:")
     print(f"    True value likely between {100 * (1 - best['mape'] / 100):.0f} and {100 * (1 + best['mape'] / 100):.0f}")
 
     cv_results.to_csv('outputs/prophet_cross_validation.csv', index=False)
-    print(f"\n✅ Saved: outputs/prophet_cross_validation.csv")
+    print("\n✅ Saved: outputs/prophet_cross_validation.csv")
 
     generate_model_config(results1)
 
@@ -144,7 +142,7 @@ def generate_model_config(results):
     }
     with open("outputs/model_config.json", "w") as f:
         json.dump(config, f, indent=2)
-    print(f"\n✅ Saved: outputs/model_config.json")
+    print("\n✅ Saved: outputs/model_config.json")
 
 
 if __name__ == '__main__':

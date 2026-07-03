@@ -3,8 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
-from sqlalchemy import text
 
 from lib.db import (
     get_engine,

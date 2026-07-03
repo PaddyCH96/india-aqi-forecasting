@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import pytest
 from lib.aqi import pm25_to_aqi, generate_synthetic_aqi

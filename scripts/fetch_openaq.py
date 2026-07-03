@@ -63,7 +63,6 @@ def fetch_city_aq(city, start_date, end_date):
 def generate_synthetic_data():
     logger.info("=== Generating Synthetic Data (Realistic Pattern) ===")
 
-    import numpy as np
 
     dates = pd.date_range('2020-07-01', '2024-12-31', freq='D')
     all_data = []

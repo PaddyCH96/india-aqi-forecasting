@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 
 from lib.db import get_engine, get_cities_with_data_summary, load_city_data
 from lib.models import train_and_forecast, train_and_validate
 from lib.metrics import evaluate_forecast, classify_model_quality
-from lib.config import AQI_THRESHOLDS, TRAIN_CUTOFF
+from lib.config import TRAIN_CUTOFF
 from lib.charts import (
     plot_history,
     plot_forecast,
@@ -43,7 +42,7 @@ selected_city = st.sidebar.selectbox(
 )
 
 city_info = cities_df[cities_df['city'] == selected_city].iloc[0]
-st.sidebar.write(f"**Data available:**")
+st.sidebar.write("**Data available:**")
 st.sidebar.write(f"• Days: {city_info['days']:,}")
 st.sidebar.write(f"• From: {city_info['start_date']}")
 st.sidebar.write(f"• To: {city_info['end_date']}")

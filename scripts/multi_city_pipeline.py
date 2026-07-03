@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from tqdm import tqdm
 from lib.logging import setup_logger
 from lib.db import get_engine, get_eligible_cities, load_city_data
@@ -90,7 +89,7 @@ else:
 
 improving = len(df_results[df_results['trend'] == 'improving'])
 worsening = len(df_results[df_results['trend'] == 'worsening'])
-print(f"\n📈 TREND SUMMARY:")
+print("\n📈 TREND SUMMARY:")
 total = len(df_results)
 print(f"  Improving by 2030: {improving} cities ({improving / total * 100:.0f}%)" if total > 0 else "  No data")
 print(f"  Worsening by 2030: {worsening} cities ({worsening / total * 100:.0f}%)" if total > 0 else "  No data")

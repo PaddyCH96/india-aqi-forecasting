@@ -1,6 +1,4 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 
 from lib.config import AQI_THRESHOLDS, MONTH_NAMES
@@ -116,7 +114,7 @@ def plot_validation(
     ax.fill_between(results["ds"], results["yhat"] * 0.8, results["yhat"] * 1.2,
                     alpha=0.1, color="red", label="±20% Error Band")
 
-    title = f"Model Validation: Actual vs Predicted"
+    title = "Model Validation: Actual vs Predicted"
     if city:
         title += f" for {city}"
     ax.set_title(title, fontsize=14)

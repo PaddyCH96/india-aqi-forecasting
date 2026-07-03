@@ -1,39 +1,55 @@
 # India Air Quality Forecasting & Urban Risk Analysis
 
-## Problem
-Urban air quality in India is highly volatile and poorly forecasted at a city level. This creates downstream risks for public health, real estate valuation, and policy planning.
+Forecast AQI up to 2030 for Indian cities using Prophet time-series models. Includes interactive dashboards, a REST API, Docker deployment, and CI/CD — built for urban planning, public health, and real estate risk assessment.
 
-## Objective
-Build a data-driven pipeline to:
-- Analyze historical AQI trends across Indian cities
-- Forecast future air quality using time-series modeling
-- Surface insights relevant to urban planning and risk assessment
+## Features
 
-## What This Project Does
-1. Data ingestion and preprocessing of AQI datasets
-2. Exploratory analysis of seasonal and city-level trends
-3. Time-series forecasting using Prophet
-4. Visualization of long-term AQI trajectories (up to 2030)
-5. Comparative analysis across cities
+- **Dashboards** — Streamlit-based interactive visualizations (history, forecast, validation, multi-city comparison)
+- **REST API** — FastAPI endpoints for forecasts, validation, and city metadata (auto-generated docs at `/docs`)
+- **Batch Forecasting** — Multi-city Prophet pipeline with trend analysis (improving/worsening cities)
+- **Model Validation** — 3-model comparison (full vs pre-COVID vs skip-COVID) with cross-validation
+- **Data Ingestion** — Fetches from OpenAQ and Open-Meteo APIs with synthetic data fallback
+- **Docker Deployment** — 4-service compose: PostgreSQL, seed, dashboard, optional API
+- **CI Pipeline** — GitHub Actions runs 100 tests with 95% coverage on push
+- **Shared Library** — `lib/` package as a single source of truth for all business logic
 
-## Key Insights
-- Clear seasonal AQI spikes across most Tier-1 cities
-- Long-term upward AQI trend in high-growth urban zones
-- Significant variance across cities → localized policy required
+## Architecture
 
-## Tech Stack
-- Python (pandas, numpy, matplotlib)
-- Prophet (time-series forecasting)
-- Streamlit (interactive dashboards)
-- FastAPI + Uvicorn (REST API)
-- PostgreSQL (data storage)
-- Docker + Docker Compose (deployment)
-- GitHub Actions (CI)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Data Sources                                               │
+│  ┌──────────┐  ┌────────────┐  ┌─────────────────────────┐ │
+│  │ OpenAQ   │  │ Open-Meteo │  │ Synthetic (fallback)    │ │
+│  └────┬─────┘  └─────┬──────┘  └───────────┬─────────────┘ │
+│       │              │                      │               │
+│       └──────────────┴──────────────────────┘               │
+│                           │                                 │
+│                    ┌──────▼──────┐                          │
+│                    │  seed_data  │                          │
+│                    └──────┬──────┘                          │
+│                           │                                 │
+│                    ┌──────▼──────┐                          │
+│                    │  PostgreSQL │                          │
+│                    │  (city_day) │                          │
+│                    └──┬──────┬───┘                          │
+│           ┌───────────┘      └───────────┐                  │
+│           │                              │                  │
+│    ┌──────▼──────┐              ┌────────▼────────┐       │
+│    │  Dashboards │              │  FastAPI API    │       │
+│    │  (Streamlit)│              │  /forecast       │       │
+│    │  :8501      │              │  /validate       │       │
+│    └─────────────┘              │  /cities/:health │       │
+│                                 └────────┬────────┘       │
+│                                          │                 │
+│  User ◄──── Browser/curl ◄──────────────┘                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Prerequisites
-- Python 3.10+
-- PostgreSQL with `india_air_quality` database and `city_day` table
-- Data files in `data/raw/` (see `data/raw/` structure)
+
+- Python 3.11+
+- PostgreSQL (if running locally)
+- Docker + Docker Compose (optional, for containerized deployment)
 
 ## Quick Start (Docker)
 
@@ -48,93 +64,193 @@ With REST API:
 docker compose --profile api up --build
 # Dashboard: http://localhost:8501
 # API docs: http://localhost:8000/docs
+# Health check: http://localhost:8000/health
 ```
 
 ## Local Setup
 
 ```bash
-# Create virtual environment
+# 1. Clone and enter
+git clone https://github.com/PaddyCH96/india-aqi-forecasting.git
+cd india-air-quality
+
+# 2. Virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# Configure database (optional, defaults to localhost)
+# 4. Configure database
 cp .env.example .env
-# Edit .env with your database URL if needed
+# Edit .env if using a non-default PostgreSQL URL
+# Default: postgresql://postgres:postgres@localhost:5432/india_air_quality
 
-# Create database and seed data
+# 5. Create database and seed
 createdb india_air_quality
-python scripts/seed_data.py
+python scripts/seed_data.py   # bootstraps from CSV or generates synthetic data
 ```
 
-## How to Run
+## Usage
+
+### Dashboards
 
 ```bash
-# Recommended dashboard (3 tabs: History, Forecast, Validation)
+# Minimal 3-tab dashboard (History, Forecast, Validation)
 streamlit run scripts/dashboard_final.py
 
-# Feature-rich dashboard (4 tabs: History, Forecast, Validation, Multi-City Comparison)
+# Feature-rich 4-tab dashboard (adds Multi-City Comparison)
 streamlit run scripts/dashboard_complete.py
+```
 
-# REST API
+### REST API
+
+```bash
 uvicorn scripts.api:app --reload --port 8000
+```
 
-# Fetch real AQI data from OpenAQ API
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Service health + last data timestamp |
+| `GET /cities` | List all cities with data summaries |
+| `GET /forecast/{city}` | Prophet forecast for a city |
+| `GET /validate/{city}` | Validation metrics (MAPE, RMSE, MAE) |
+
+### Data Ingestion
+
+```bash
+# Fetch from OpenAQ API (real AQI data)
 python scripts/fetch_openaq.py
 
-# Run multi-city batch forecasting pipeline
+# Fetch from Open-Meteo API (recent AQI data)
+python scripts/fetch_recent_aqi.py
+```
+
+### Forecasting Pipelines
+
+```bash
+# Batch forecast for all eligible cities
 python scripts/multi_city_pipeline.py
 
-# Run model validation with cross-validation
+# Model validation (3-model comparison + cross-validation)
 python scripts/validate_prophet.py
+```
 
-# Run tests
-pytest tests/ -v --cov=lib/
+## Testing
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# With coverage
+pytest tests/ -v --cov=lib/ --cov-report=term
+
+# Run specific test file
+pytest tests/test_db.py -v
 ```
 
 ## Project Structure
+
 ```
 india-air-quality/
-├── lib/                # Shared library (config, db, models, metrics, aqi)
-├── scripts/            # Production-ready scripts and dashboards
-├── notebooks/          # Jupyter notebooks for exploration
-├── sql/                # Analytical SQL queries
-├── data/raw/           # Raw CSV datasets
-├── data/processed/     # Processed/generated data
-├── outputs/            # Charts, forecasts, model config
-├── requirements.txt
-├── .env.example
-└── README.md
+├── lib/                    # Shared library (single source of truth)
+│   ├── config.py           #   App configuration & constants
+│   ├── db.py               #   Database connection & queries
+│   ├── models.py           #   Prophet model wrappers
+│   ├── metrics.py          #   MAPE, RMSE, MAE, evaluation
+│   ├── aqi.py              #   PM2.5→AQI conversion & synthetic data
+│   ├── charts.py           #   6 reusable chart functions
+│   ├── logging.py          #   Logging setup
+│   └── utils.py            #   Retry decorator, URL validation
+├── scripts/                # Runnable scripts
+│   ├── api.py              #   FastAPI REST API
+│   ├── dashboard_final.py  #   3-tab Streamlit dashboard
+│   ├── dashboard_complete.py # 4-tab feature-rich dashboard
+│   ├── seed_data.py        #   Database bootstrap
+│   ├── fetch_openaq.py     #   OpenAQ ingestion
+│   ├── fetch_recent_aqi.py #   Open-Meteo ingestion
+│   ├── multi_city_pipeline.py  # Batch forecasting
+│   └── validate_prophet.py #   Model validation
+├── tests/                  # 100 tests across 6 files
+├── docs/                   # Architecture, deployment, testing, handover
+├── notebooks/              # Jupyter notebooks
+├── sql/                    # Analytical SQL queries
+├── data/raw/               # Raw CSV datasets (gitignored)
+├── data/processed/         # Generated data (gitignored)
+├── outputs/                # Charts, forecasts (gitignored)
+├── Dockerfile              # Python 3.11-slim container
+├── docker-compose.yml      # 4 services (db, seed, dashboard, api)
+├── .env.example            # Environment template
+├── requirements.txt        # Pinned dependencies
+└── release_report.md       # Release validation summary
 ```
 
-## Scripts Overview
-| Script | Purpose |
-|--------|---------|
-| `dashboard_final.py` | Recommended 3-tab Streamlit dashboard |
-| `dashboard_complete.py` | Feature-rich 4-tab dashboard with multi-city comparison |
-| `fetch_openaq.py` | Fetch AQI data from OpenAQ API with synthetic fallback |
-| `fetch_recent_aqi.py` | Fetch AQI data from Open-Meteo API |
-| `multi_city_pipeline.py` | Batch forecast processing for all eligible cities |
-| `validate_prophet.py` | Model validation with 3-model comparison & cross-validation |
+## Configuration
+
+All configuration in `lib/config.py`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_URL` | `postgresql://postgres:postgres@localhost:5432/india_air_quality` | Database URL |
+| `TRAIN_CUTOFF` | `2023-01-01` | Train/test split date |
+| `FORECAST_PERIODS` | 2190 | Forecast periods (6 years daily) |
+| `FORECAST_YEARS` | 6 | Forecast horizon in years |
+| `PROPHET_PARAMS` | `yearly_seasonality=True` | Default Prophet parameters |
+
+Set via `.env`:
+```env
+DB_URL=postgresql://user:pass@host:5432/india_air_quality
+```
+
+## Deployment
+
+### Docker (Production)
+
+```bash
+# Full stack
+docker compose --profile api up --build -d
+
+# Scale API
+docker compose --profile api up --build -d --scale api=3
+```
+
+### Manual (Single Service)
+
+```bash
+# Dashboard
+streamlit run scripts/dashboard_final.py --server.port 8501 --server.address 0.0.0.0
+
+# API
+uvicorn scripts.api:app --host 0.0.0.0 --port 8000 --workers 4
+```
 
 ## Limitations
-- Historical data limited (majority pre-2020)
-- Forecast accuracy constrained by lack of external regressors
-- No real-time data integration
-- PostgreSQL dependency for dashboard functionality
 
-## Future Improvements
-- Integrate live AQI APIs
-- Add weather + traffic regressors
-- Build a city-level risk scoring system
-- Deploy as an API/dashboard
-- Add automated test suite
+- **PostgreSQL dependency** — all dashboards and pipelines require a running Postgres instance
+- **Synthetic data fallback** — when no real CSV is available, `seed_data.py` generates plausible synthetic data
+- **Single-regressor model** — Prophet uses only yearly seasonality (weather regressors were tested but showed unstable correlations across the COVID period)
+- **MAPE range** — current accuracy: Hyderabad 15.6%, Mumbai 13.05%
+- **No real-time updates** — dashboards show static data until re-run
 
-## Why This Matters
-This project demonstrates how air quality data can be transformed into:
-- Urban risk indicators
-- Policy-relevant insights
-- Decision support tools for real estate and infrastructure planning
-- Hyderabad shows a consistent upward AQI trend post-2018, indicating increasing environmental risk in high-growth urban corridors
+## Contributing
+
+1. Branch off `main`: `git checkout -b feature/your-feature`
+2. Make changes, add tests in `tests/`
+3. Run tests: `pytest tests/ -v --cov=lib/`
+4. Run linter: `ruff check lib/ scripts/ tests/`
+5. Submit a pull request
+
+## Key Insights
+
+- Clear seasonal AQI spikes across most Tier-1 cities
+- Long-term upward AQI trend in high-growth urban zones
+- Hyderabad shows consistent upward AQI trend post-2018, indicating increasing environmental risk in high-growth corridors
+- Significant variance across cities suggests localized policy intervention is required
+
+## Related Resources
+
+- `docs/architecture.md` — System architecture and data flow
+- `docs/deployment.md` — Production deployment guide
+- `docs/testing.md` — Testing strategy and coverage
+- `docs/handover.md` — Full project handover documentation
+- `release_report.md` — Release validation (100 tests, 95% coverage)

@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from lib.models import create_model, train_and_forecast, train_and_validate
-from lib.config import PROPHET_PARAMS, FORECAST_PERIODS, FORECAST_YEARS
+from lib.config import PROPHET_PARAMS, FORECAST_PERIODS
 
 
 class TestCreateModel:
