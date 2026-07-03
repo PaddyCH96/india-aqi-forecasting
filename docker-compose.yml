@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: india_air_quality
+      POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  seed:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AQI_DB_URL: postgresql://postgres@db:5432/india_air_quality
+    command: python scripts/seed_data.py
+    restart: "no"
+
+  dashboard:
+    build: .
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    ports:
+      - "8501:8501"
+    environment:
+      AQI_DB_URL: postgresql://postgres@db:5432/india_air_quality
+    command: streamlit run scripts/dashboard_final.py --server.port=8501 --server.address=0.0.0.0
+
+  api:
+    build: .
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    environment:
+      AQI_DB_URL: postgresql://postgres@db:5432/india_air_quality
+    command: uvicorn scripts.api:app --host 0.0.0.0 --port 8000
+    profiles:
+      - api
+
+volumes:
+  pgdata:
