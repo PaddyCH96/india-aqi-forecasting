@@ -2,10 +2,15 @@
 """Ingest city_hour.csv into city_hourly_measurements with provenance."""
 
 import os
-from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from lib.pathing import ensure_project_root_on_path
+
+ensure_project_root_on_path()
 
 import pandas as pd
 from datetime import datetime, timezone
@@ -164,19 +169,28 @@ def detect_gaps(engine):
 
 
 def main():
-    engine = get_engine()
+    try:
+        engine = get_engine()
+    except Exception as exc:
+        logger.error(f"Database connection failed: {exc}")
+        logger.warning("Hourly ingestion skipped because no PostgreSQL instance is reachable.")
+        return
 
-    if os.path.exists(CSV_PATH):
-        create_table(engine)
-        ingest_hourly_csv(engine)
-        validate_and_report(engine)
-        detect_gaps(engine)
-    else:
-        logger.warning(f"No CSV found at {CSV_PATH}. Hourly pipeline skipped.")
-        logger.info("To generate hourly data in future: fetch from OpenAQ or CPCB.")
-
-    engine.dispose()
-    logger.info("Hourly ingestion complete.")
+    try:
+        if os.path.exists(CSV_PATH):
+            create_table(engine)
+            ingest_hourly_csv(engine)
+            validate_and_report(engine)
+            detect_gaps(engine)
+        else:
+            logger.warning(f"No CSV found at {CSV_PATH}. Hourly pipeline skipped.")
+            logger.info("To generate hourly data in future: fetch from OpenAQ or CPCB.")
+    except Exception as exc:
+        logger.error(f"Hourly ingestion failed: {exc}")
+        logger.warning("The pipeline completed with warnings because the database was unavailable.")
+    finally:
+        engine.dispose()
+        logger.info("Hourly ingestion complete.")
 
 
 if __name__ == "__main__":

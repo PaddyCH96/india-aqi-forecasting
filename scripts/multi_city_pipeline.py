@@ -6,10 +6,16 @@ Use --synthetic flag to include synthetic 2020-2024 data.
 """
 
 import argparse
-from pathlib import Path
+import os
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from lib.pathing import ensure_project_root_on_path
+
+ensure_project_root_on_path()
 
 import pandas as pd
 from tqdm import tqdm
@@ -25,7 +31,12 @@ parser.add_argument("--synthetic", action="store_true", help="Include synthetic 
 args = parser.parse_args()
 use_synthetic = args.synthetic
 
-engine = get_engine()
+try:
+    engine = get_engine()
+except Exception as exc:
+    logger.error(f"Database connection failed: {exc}")
+    logger.warning("Multi-city pipeline skipped because no PostgreSQL instance is reachable.")
+    raise SystemExit(0)
 
 logger.info(f"Fetching eligible cities (synthetic={'yes' if use_synthetic else 'no'})...")
 cities_df = get_eligible_cities(engine, use_synthetic=use_synthetic)

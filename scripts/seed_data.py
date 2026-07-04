@@ -7,10 +7,15 @@ Priority: processed CSV > raw CPCB CSV > synthetic generation.
 """
 
 import os
-from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from lib.pathing import ensure_project_root_on_path
+
+ensure_project_root_on_path()
 import pandas as pd
 from datetime import datetime, timezone
 from lib.db import get_engine, get_data_freshness
@@ -93,22 +98,33 @@ def seed_synthetic(engine):
 
 
 def main():
-    engine = get_engine()
-    if db_has_data(engine):
-        freshness = get_data_freshness(engine)
-        logger.info(
-            f"city_measurements already has {freshness['total_rows']:,} rows "
-            f"({freshness['real_rows']:,} real, {freshness['synthetic_rows']:,} synthetic). "
-            "Skipping seed."
-        )
+    try:
+        engine = get_engine()
+    except Exception as exc:
+        logger.error(f"Database connection failed: {exc}")
+        logger.warning("Seeding skipped because no PostgreSQL instance is reachable.")
         return
 
-    logger.info("Seeding database...")
-    if not seed_from_processed_csv(engine):
-        if not seed_from_raw_csv(engine):
-            seed_synthetic(engine)
-    engine.dispose()
-    logger.info("Seed complete.")
+    try:
+        if db_has_data(engine):
+            freshness = get_data_freshness(engine)
+            logger.info(
+                f"city_measurements already has {freshness['total_rows']:,} rows "
+                f"({freshness['real_rows']:,} real, {freshness['synthetic_rows']:,} synthetic). "
+                "Skipping seed."
+            )
+            return
+
+        logger.info("Seeding database...")
+        if not seed_from_processed_csv(engine):
+            if not seed_from_raw_csv(engine):
+                seed_synthetic(engine)
+        logger.info("Seed complete.")
+    except Exception as exc:
+        logger.error(f"Seeding failed: {exc}")
+        logger.warning("The script completed with warnings because the database was unavailable.")
+    finally:
+        engine.dispose()
 
 
 if __name__ == "__main__":

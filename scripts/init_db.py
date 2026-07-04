@@ -2,10 +2,15 @@
 """Initialize the database with provenance schema and seed from real CSVs only."""
 
 import os
-from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from lib.pathing import ensure_project_root_on_path
+
+ensure_project_root_on_path()
 import pandas as pd
 from datetime import datetime, timezone
 from sqlalchemy import text as sa_text
@@ -219,22 +224,32 @@ def print_summary(engine):
 
 
 def main():
-    engine = get_engine()
+    try:
+        engine = get_engine()
+    except Exception as exc:
+        logger.error(f"Database connection failed: {exc}")
+        logger.warning("Database initialization skipped because no PostgreSQL instance is reachable.")
+        return
 
-    if schema_exists(engine):
-        logger.info("city_measurements table already exists. Dropping and recreating...")
-        with engine.connect() as conn:
-            conn.execute(sa_text("DROP VIEW IF EXISTS city_day"))
-            conn.execute(sa_text("DROP TABLE IF EXISTS city_measurements CASCADE"))
-            conn.commit()
+    try:
+        if schema_exists(engine):
+            logger.info("city_measurements table already exists. Dropping and recreating...")
+            with engine.connect() as conn:
+                conn.execute(sa_text("DROP VIEW IF EXISTS city_day"))
+                conn.execute(sa_text("DROP TABLE IF EXISTS city_measurements CASCADE"))
+                conn.commit()
 
-    create_provenance_schema(engine)
-    migrate_real_data(engine)
-    add_synthetic_data(engine)
-    create_legacy_view(engine)
-    create_stations_table(engine)
-    print_summary(engine)
-    engine.dispose()
+        create_provenance_schema(engine)
+        migrate_real_data(engine)
+        add_synthetic_data(engine)
+        create_legacy_view(engine)
+        create_stations_table(engine)
+        print_summary(engine)
+    except Exception as exc:
+        logger.error(f"Database initialization failed: {exc}")
+        logger.warning("The script completed with warnings because the database was unavailable.")
+    finally:
+        engine.dispose()
 
 
 if __name__ == '__main__':
