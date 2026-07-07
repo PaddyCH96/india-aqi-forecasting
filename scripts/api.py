@@ -12,11 +12,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
+import pandas as pd
+import logging
 
 from lib.db import get_engine, get_cities_with_recent_data, load_city_data, get_data_freshness
 from lib.models import train_and_forecast, train_and_validate
 from lib.metrics import evaluate_forecast, classify_model_quality
 from lib.config import TRAIN_CUTOFF
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="India AQI Forecasting API", version="2.0.0")
 engine = get_engine()
@@ -72,6 +76,7 @@ class HealthResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse)
 def health():
+    """Health check endpoint with data freshness info."""
     freshness = get_data_freshness(engine)
     return {
         "status": "ok",
@@ -81,27 +86,55 @@ def health():
 
 @app.get("/cities", response_model=CitiesResponse)
 def list_cities(use_synthetic: bool = Query(False)):
+    """List cities with recent data available."""
     cities = get_cities_with_recent_data(engine, use_synthetic=use_synthetic)
     return {"cities": cities, "count": len(cities)}
 
 
 @app.get("/forecast/{city}", response_model=ForecastResponse)
 def get_forecast(city: str, use_synthetic: bool = Query(False)):
+    """Generate AQI forecast for a city.
+    
+    Raises:
+        404: City not found or no data available
+        500: Forecasting failed
+    """
     df = load_city_data(engine, city, use_synthetic=use_synthetic)
     if df.empty:
         raise HTTPException(404, f"No data found for city: {city}")
 
-    _, forecast = train_and_forecast(df)
+    # Attempt forecasting with error handling
+    try:
+        _, forecast = train_and_forecast(df)
+    except Exception as e:
+        logger.error(f"Forecasting failed for {city}: {str(e)}")
+        raise HTTPException(500, f"Forecasting failed for {city}: {str(e)}")
 
     cutoff_year = 2024 if use_synthetic else 2020
     max_date = df["ds"].max()
 
-    current_avg = (
-        df[df["ds"].dt.year == cutoff_year]["y"].mean()
-        if len(df[df["ds"].dt.year == cutoff_year]) > 0
-        else None
-    )
-    pred_2030 = forecast[forecast["ds"].dt.year == 2030]["yhat"].mean()
+    # Safely compute current average
+    current_data = df[df["ds"].dt.year == cutoff_year]["y"]
+    current_avg = None
+    if len(current_data) > 0:
+        current_avg = float(current_data.mean())
+        if pd.isna(current_avg):
+            current_avg = None
+
+    # Safely compute 2030 prediction
+    forecast_2030 = forecast[forecast["ds"].dt.year == 2030]["yhat"]
+    if len(forecast_2030) == 0:
+        raise HTTPException(500, f"No 2030 forecast available for {city}")
+    
+    pred_2030 = float(forecast_2030.mean())
+    if pd.isna(pred_2030):
+        raise HTTPException(500, f"2030 forecast is invalid (NaN) for {city}")
+
+    # Determine trend with null safety
+    if current_avg is not None:
+        trend = "improving" if pred_2030 < current_avg else "worsening"
+    else:
+        trend = "unknown"
 
     forecast_out = forecast[forecast["ds"] > max_date]
 
@@ -110,7 +143,7 @@ def get_forecast(city: str, use_synthetic: bool = Query(False)):
         "data_points": len(df),
         "current_avg": round(current_avg, 1) if current_avg else None,
         "pred_2030": round(pred_2030, 1),
-        "trend": "improving" if pred_2030 and current_avg and pred_2030 < current_avg else "worsening",
+        "trend": trend,
         "synthetic_data_used": use_synthetic,
         "historical": [
             {"ds": str(r["ds"].date()), "yhat": round(r["y"], 1),
@@ -128,6 +161,13 @@ def get_forecast(city: str, use_synthetic: bool = Query(False)):
 
 @app.get("/validate/{city}", response_model=ValidationResponse)
 def get_validation(city: str, use_synthetic: bool = Query(False)):
+    """Validate model performance on historical data.
+    
+    Raises:
+        404: City not found or no data available
+        400: Insufficient data for validation
+        500: Model validation failed
+    """
     df = load_city_data(engine, city, use_synthetic=use_synthetic)
     if df.empty:
         raise HTTPException(404, f"No data found for city: {city}")
@@ -138,8 +178,19 @@ def get_validation(city: str, use_synthetic: bool = Query(False)):
     if len(test) < 30:
         raise HTTPException(400, f"Insufficient test data for {city}: {len(test)} days")
 
-    _, _, results = train_and_validate(train, test)
+    # Attempt model training with error handling
+    try:
+        _, _, results = train_and_validate(train, test)
+    except Exception as e:
+        logger.error(f"Model validation failed for {city}: {str(e)}")
+        raise HTTPException(500, f"Model validation failed for {city}: {str(e)}")
+
     metrics = evaluate_forecast(results)
+    
+    # Handle NaN metrics
+    if pd.isna(metrics["mape"]):
+        raise HTTPException(500, f"Invalid MAPE for {city} (all actual values may be zero)")
+    
     quality, _ = classify_model_quality(metrics["mape"])
 
     return {
@@ -156,4 +207,5 @@ def get_validation(city: str, use_synthetic: bool = Query(False)):
 
 @app.get("/data/freshness")
 def data_freshness():
+    """Get data freshness and source information."""
     return get_data_freshness(engine)
