@@ -232,4 +232,4 @@ streamlit run scripts/dashboard.py
 
 ---
 
-*CPCB data 2015–2020 · 26 cities · 12 pollutants · 5.5 years. Built with open data and open source.*
+*Bundled demo database: CPCB daily records 2015-01 to 2020-07 across 26 cities, hourly readings 2019-01 to 2020-07 for six cities, plus a synthetic 2020-07 to 2024-12 series tagged `is_synthetic`. Headline figures (700K+ records, 12 pollutants, 5.5 years) come from the full CPCB extract, which is not committed. Built with open data and open source.*

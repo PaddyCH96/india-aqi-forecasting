@@ -526,7 +526,8 @@ else:
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: gray; font-size: 0.85em;'>"
-    "India Air Quality Analytics | CPCB Data 2015–2020 | "
+    "India Air Quality Analytics | CPCB daily 2015-01–2020-07 (26 cities) "
+    "· hourly 2019-01–2020-07 (6 cities) | "
     f"Freshness: {freshness['last_ingested_at'] or 'N/A'}"
     "</div>", unsafe_allow_html=True
 )
