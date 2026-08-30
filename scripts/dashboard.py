@@ -102,7 +102,12 @@ if not selected_cities:
 
 # ─── Data Loading ────────────────────────────────────────────────
 @st.cache_data(ttl=300)
-def load_pollutant_data(cities):
+def load_pollutant_data(cities, use_synthetic):
+    """use_synthetic is an explicit argument so it forms part of the cache key.
+
+    Read from the enclosing scope it would not, and toggling the sidebar
+    checkbox would keep serving the previously cached frame.
+    """
     all_data = []
     for city in cities:
         df = load_city_pollutants(engine, city, use_synthetic=use_synthetic)
@@ -141,7 +146,7 @@ def load_hourly_data(cities):
 
 
 with st.spinner("Loading data..."):
-    df = load_pollutant_data(selected_cities)
+    df = load_pollutant_data(selected_cities, use_synthetic)
 
 if df.empty:
     st.warning("No data loaded. Try selecting different cities or enabling synthetic data.")
