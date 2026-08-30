@@ -49,12 +49,19 @@ from lib.analysis import (
     monthly_trends,
     pollutant_summary,
 )
-from lib.forecasting_service import (
-    get_forecast_for_dashboard,
-    forecast_with_baseline,
-    load_backtest_results,
-    load_precomputed_forecast,
-)
+# The forecasting stack pulls in xgboost. If that import fails on a host, the
+# whole dashboard should not go blank -- the other five sections do not need it.
+FORECASTING_AVAILABLE = True
+FORECASTING_IMPORT_ERROR = ""
+try:
+    from lib.forecasting_service import (
+        forecast_with_baseline,
+        load_backtest_results,
+        load_precomputed_forecast,
+    )
+except Exception as _exc:  # noqa: BLE001
+    FORECASTING_AVAILABLE = False
+    FORECASTING_IMPORT_ERROR = f"{type(_exc).__name__}: {_exc}"
 
 warnings.filterwarnings("ignore")
 
@@ -539,6 +546,14 @@ with tab_h:
 # PAGE 6: FORECASTING
 # ═══════════════════════════════════════════════════════════════════
 st.header("6️⃣ AQI Forecasting")
+
+if not FORECASTING_AVAILABLE:
+    st.warning(
+        "The forecasting module could not be loaded on this host, so this "
+        "section is unavailable. Every other section above is unaffected."
+    )
+    st.caption(f"Import error: {FORECASTING_IMPORT_ERROR}")
+    st.stop()
 
 forecast_city = st.selectbox("Forecast City", selected_cities, key="forecast_city")
 horizon_days = st.select_slider(
