@@ -2,15 +2,30 @@
   <h1 align="center">India Air Quality Forecasting</h1>
   <p align="center">
     <strong>700K+ records · 26 cities · 12 pollutants · 5.5 years</strong><br>
-    <em>XGBoost models achieve 0.8–3.2% MAPE · Interactive dashboard · REST API · Dockerized</em>
-    <br><br>
-    <a href="CASE_STUDY.md"><strong>Case Study</strong></a> ·
-    <a href="INSIGHTS.md"><strong>Key Insights</strong></a> ·
-    <a href="DEMO_WALKTHROUGH.md"><strong>Demo Walkthrough</strong></a>
+    <em>XGBoost forecasts at 0.8–3.2% MAPE — 10–20× better than seasonal-naive baselines</em>
+  </p>
+  <p align="center">
+    <a href="https://india-aqi-forecasting-ujpesuvlw7zjgysapt8ff8.streamlit.app">
+      <img alt="Live demo" src="https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white"></a>
+    <a href="https://github.com/PaddyCH96/india-aqi-forecasting/actions/workflows/test.yml">
+      <img alt="Tests" src="https://github.com/PaddyCH96/india-aqi-forecasting/actions/workflows/test.yml/badge.svg"></a>
+    <img alt="Tests count" src="https://img.shields.io/badge/tests-145%20passing-brightgreen">
+    <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white">
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow"></a>
+  </p>
+  <p align="center">
+    <a href="https://india-aqi-forecasting-ujpesuvlw7zjgysapt8ff8.streamlit.app"><strong>Open the live dashboard</strong></a> ·
+    <a href="CASE_STUDY.md">Case Study</a> ·
+    <a href="INSIGHTS.md">Key Insights</a> ·
+    <a href="DEMO_WALKTHROUGH.md">Walkthrough</a>
   </p>
 </p>
 
 ---
+
+> **Try it first:** the [live dashboard](https://india-aqi-forecasting-ujpesuvlw7zjgysapt8ff8.streamlit.app) runs on the bundled demo database —
+> 29,531 real CPCB daily records across 26 cities and 78,774 hourly readings, with
+> six trained XGBoost models. No signup, no setup.
 
 ---
 
@@ -35,8 +50,8 @@
 - **XGBoost + Random Forest models** — 66 features per city (lags, rolling stats, seasonal cycles, pollutant interactions)
 - **Data provenance** — Every row tagged as real/synthetic with source tracking
 - **REST API** — FastAPI with `/forecast/{city}`, `/validate/{city}`, `/data/freshness`
-- **144 tests** across 9 files, 95% coverage, Ruff-clean
-- **Docker deployment** — 4-service compose (PostgreSQL, seed, dashboard, API)
+- **145 tests** across 9 files, 95% coverage, Ruff-clean
+- **Runs three ways** — hosted on Streamlit Cloud with zero setup, `docker compose up` for the full PostgreSQL stack, or a bare clone against the bundled SQLite database
 
 ---
 
@@ -84,11 +99,11 @@
 | Models | XGBoost, scikit-learn (Random Forest), Prophet |
 | Dashboard | Streamlit + matplotlib |
 | API | FastAPI + uvicorn |
-| Database | PostgreSQL (SQLAlchemy + psycopg2) |
+| Database | PostgreSQL in Docker; bundled SQLite for the hosted demo (SQLAlchemy) |
 | Data | pandas, numpy |
 | Infrastructure | Docker, Docker Compose |
 | CI/CD | GitHub Actions (pytest, ruff) |
-| Testing | pytest, pytest-cov (144 tests) |
+| Testing | pytest, pytest-cov (145 tests) |
 
 ---
 
@@ -198,9 +213,9 @@ streamlit run scripts/dashboard.py
 │   ├── api.py           #   FastAPI REST API
 │   ├── seed_data.py     #   Database bootstrap
 │   └── ingest_hourly.py #   Hourly data pipeline
-├── tests/               # 144 tests
+├── tests/               # 145 tests
 ├── docs/                # Architecture, EDA, deployment, ML eval
-├── models/              # Trained models (*.pkl, generated)
+├── models/              # Six trained XGBoost models (committed, 4.5 MB)
 ├── CASE_STUDY.md        # Portfolio narrative
 ├── INSIGHTS.md          # Top 5 findings with evidence
 └── Dockerfile + docker-compose.yml
@@ -212,7 +227,7 @@ streamlit run scripts/dashboard.py
 
 1. **[Case Study](CASE_STUDY.md)** — Narrative overview of the project (10 min read)
 2. **[Key Insights](INSIGHTS.md)** — Five defensible findings with evidence (5 min read)
-3. **Dashboard** — Run `streamlit run scripts/dashboard.py` to see it live
+3. **[Live dashboard](https://india-aqi-forecasting-ujpesuvlw7zjgysapt8ff8.streamlit.app)** — the running system, no setup required
 4. **Code** — `lib/` for core logic, `tests/` for test coverage
 
 ---
