@@ -320,7 +320,11 @@ def plot_seasonal_box(
     cdf["season"] = cdf["month"].map(season_map)
     seasons = ["Winter", "Spring", "Summer", "Monsoon"]
     data = [cdf[cdf["season"] == s][pollutant].dropna().values for s in seasons]
-    bp = ax.boxplot(data, labels=seasons, patch_artist=True)
+    # boxplot's labels= was deprecated in matplotlib 3.9 and removed in 3.11.
+    # Setting tick labels afterwards works across every supported version.
+    bp = ax.boxplot(data, patch_artist=True)
+    ax.set_xticks(range(1, len(seasons) + 1))
+    ax.set_xticklabels(seasons)
     season_colors = ["lightblue", "lightgreen", "orange", "gray"]
     for patch, color in zip(bp["boxes"], season_colors):
         patch.set_facecolor(color)
