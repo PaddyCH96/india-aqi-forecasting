@@ -17,7 +17,7 @@ docker compose version   # (optional)
 
 ```bash
 git clone https://github.com/PaddyCH96/india-aqi-forecasting.git
-cd india-air-quality
+cd india-aqi-forecasting
 ```
 
 ## 2. Environment Setup

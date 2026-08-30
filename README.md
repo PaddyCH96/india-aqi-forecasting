@@ -97,7 +97,7 @@
 ```bash
 # Docker (easiest — no local PostgreSQL needed)
 git clone https://github.com/PaddyCH96/india-aqi-forecasting.git
-cd india-air-quality
+cd india-aqi-forecasting
 docker compose up --build
 # Dashboard at http://localhost:8501
 
@@ -105,6 +105,23 @@ docker compose up --build
 docker compose --profile api up --build
 # API docs at http://localhost:8000/docs
 ```
+
+### A note on data in a fresh clone
+
+The raw CPCB/OpenAQ extracts are not committed (they are large, and redistribution
+terms vary). On a fresh clone `scripts/seed_data.py` falls back to generating
+synthetic data — roughly 9,900 rows across 6 cities — and every row is tagged
+`is_synthetic = true`.
+
+Because provenance is enforced rather than assumed, synthetic rows are **excluded
+by default**. To see the seeded data:
+
+- **Dashboard** — tick *"Include synthetic data (2020-2024)"* in the sidebar.
+- **API** — pass `?use_synthetic=true`, e.g. `/cities?use_synthetic=true`.
+
+Without that flag a fresh clone correctly reports no real data — `/cities` returns
+`{"cities": [], "count": 0}`. That is the provenance guarantee working, not a bug.
+The 26-city, 700K-record figures quoted above come from the full ingested dataset.
 
 ### Local Setup
 
