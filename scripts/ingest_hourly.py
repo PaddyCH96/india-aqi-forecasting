@@ -21,6 +21,13 @@ from lib.logging import setup_logger
 logger = setup_logger("ingest-hourly")
 
 TABLE = "city_hourly_measurements"
+
+
+def _dialect(engine):
+    """SERIAL/NOW() are PostgreSQL spellings, and SQLite caps bound variables."""
+    if engine.dialect.name == "sqlite":
+        return "INTEGER PRIMARY KEY AUTOINCREMENT", "CURRENT_TIMESTAMP", 500
+    return "SERIAL PRIMARY KEY", "NOW()", 10000
 CSV_PATH = "data/raw/city_hour.csv"
 
 COLUMN_MAP = {
@@ -45,10 +52,11 @@ COLUMN_MAP = {
 
 def create_table(engine):
     logger.info(f"Creating {TABLE} table...")
+    pk_type, now_fn, _ = _dialect(engine)
     with engine.connect() as conn:
         conn.execute(sa_text(f"""
             CREATE TABLE IF NOT EXISTS {TABLE} (
-                id SERIAL PRIMARY KEY,
+                id {pk_type},
                 city VARCHAR(100) NOT NULL,
                 datetime TIMESTAMP NOT NULL,
                 pm2_5 DOUBLE PRECISION,
@@ -67,7 +75,7 @@ def create_table(engine):
                 aqi_bucket VARCHAR(50),
                 is_synthetic BOOLEAN NOT NULL DEFAULT FALSE,
                 data_source VARCHAR(100) NOT NULL DEFAULT 'CPCB',
-                ingested_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                ingested_at TIMESTAMP NOT NULL DEFAULT {now_fn},
                 UNIQUE(city, datetime, data_source)
             )
         """))
@@ -83,7 +91,7 @@ def create_table(engine):
     logger.info(f"Table {TABLE} ready.")
 
 
-def ingest_hourly_csv(engine):
+def ingest_hourly_csv(engine, cities=None):
     if not os.path.exists(CSV_PATH):
         logger.error(f"Not found: {CSV_PATH}")
         return 0
@@ -92,6 +100,10 @@ def ingest_hourly_csv(engine):
     df = pd.read_csv(CSV_PATH, parse_dates=["Datetime"])
     df = df.rename(columns=COLUMN_MAP)
     df["datetime"] = pd.to_datetime(df["datetime"])
+    if cities:
+        df = df[df["city"].isin(cities)]
+        logger.info(f"Filtered to {len(cities)} cities: {', '.join(sorted(cities))}")
+
     df["is_synthetic"] = False
     df["data_source"] = "CPCB"
     df["ingested_at"] = datetime.now(timezone.utc)
@@ -100,7 +112,8 @@ def ingest_hourly_csv(engine):
     logger.info(f"Date range: {df['datetime'].min()} to {df['datetime'].max()}")
     logger.info(f"Cities: {df['city'].nunique()}")
 
-    df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=10000)
+    _, _, chunk = _dialect(engine)
+    df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=chunk)
     logger.info(f"Inserted {len(df):,} rows into {TABLE}.")
     return len(df)
 

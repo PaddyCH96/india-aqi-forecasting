@@ -142,7 +142,12 @@ def load_hourly_data(cities):
         )
         if not df.empty:
             dfs.append(df)
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    if not dfs:
+        return pd.DataFrame()
+    out = pd.concat(dfs, ignore_index=True)
+    # SQLite returns TIMESTAMP columns as text; the daily loader does the same.
+    out["datetime"] = pd.to_datetime(out["datetime"])
+    return out
 
 
 with st.spinner("Loading data..."):
@@ -327,7 +332,13 @@ with tab_f:
                 plot_diurnal_pattern(ax, df_hourly, city, pollutant=pollutant)
                 st.pyplot(fig)
     else:
-        st.info("Hourly data available for selected cities. Run `ingest_hourly.py` if not loaded.")
+        st.info(
+            "No hourly data for the selected cities. The bundled demo database "
+            "carries hourly readings from 2019-01 to 2020-07 for Delhi, Mumbai, "
+            "Bengaluru, Chennai, Hyderabad and Kolkata. For other cities or the "
+            "full 2015-2020 range, run `scripts/ingest_hourly.py` against the "
+            "complete CPCB extract."
+        )
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE 4: CITY DEEP-DIVE
