@@ -26,8 +26,13 @@ def _empty_aqi_df():
 
 class TestGetEngine:
     def test_returns_engine_with_default_url(self):
+        """With no AQI_DB_URL set, config falls back to the bundled SQLite demo
+        database when present, and to local PostgreSQL otherwise."""
         engine = get_engine()
-        assert str(engine.url) == "postgresql://postgres@localhost:5432/india_air_quality"
+        url = str(engine.url)
+        assert url.startswith("sqlite:///") or url == (
+            "postgresql://postgres@localhost:5432/india_air_quality"
+        )
 
     def test_uses_custom_url(self):
         engine = get_engine("postgresql://user:pass@host:5432/testdb")

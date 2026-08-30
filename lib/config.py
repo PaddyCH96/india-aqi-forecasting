@@ -1,9 +1,27 @@
 import os
 
-DB_URL = os.getenv(
-    "AQI_DB_URL",
-    "postgresql://postgres@localhost:5432/india_air_quality"
-)
+def _default_db_url() -> str:
+    """Pick a sensible database without configuration.
+
+    Order: AQI_DB_URL if set (Docker, Render, local .env) -> the bundled
+    read-only SQLite demo database if present (Streamlit Community Cloud,
+    fresh clones) -> local PostgreSQL.
+    """
+    explicit = os.getenv("AQI_DB_URL")
+    if explicit:
+        return explicit
+
+    demo = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "aqi_demo.db",
+    )
+    if os.path.exists(demo):
+        return f"sqlite:///{demo}"
+
+    return "postgresql://postgres@localhost:5432/india_air_quality"
+
+
+DB_URL = _default_db_url()
 
 PROPHET_PARAMS = {
     "yearly_seasonality": True,

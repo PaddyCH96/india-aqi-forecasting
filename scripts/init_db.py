@@ -19,6 +19,9 @@ from lib.logging import setup_logger
 from lib.config import CITIES, BASE_AQI
 from lib.aqi import generate_synthetic_aqi
 
+# SQLite caps bound variables per statement; 500 rows x 19 cols stays under it.
+CHUNKSIZE = 500
+
 logger = setup_logger("init-db")
 
 REAL_SOURCES = {
@@ -39,12 +42,25 @@ def schema_exists(engine) -> bool:
         return False
 
 
+def _cascade(engine):
+    """SQLite has no CASCADE on DROP TABLE."""
+    return "" if engine.dialect.name == "sqlite" else " CASCADE"
+
+
+def _dialect_types(engine):
+    """SERIAL and NOW() are PostgreSQL spellings; SQLite needs its own."""
+    if engine.dialect.name == "sqlite":
+        return "INTEGER PRIMARY KEY AUTOINCREMENT", "CURRENT_TIMESTAMP"
+    return "SERIAL PRIMARY KEY", "NOW()"
+
+
 def create_provenance_schema(engine):
     logger.info("Creating city_measurements table with provenance...")
+    pk_type, now_fn = _dialect_types(engine)
     with engine.connect() as conn:
-        conn.execute(sa_text("""
+        conn.execute(sa_text(f"""
             CREATE TABLE IF NOT EXISTS city_measurements (
-                id SERIAL PRIMARY KEY,
+                id {pk_type},
                 city VARCHAR(100) NOT NULL,
                 date DATE NOT NULL,
                 pm2_5 DOUBLE PRECISION,
@@ -63,7 +79,7 @@ def create_provenance_schema(engine):
                 aqi_bucket VARCHAR(50),
                 is_synthetic BOOLEAN NOT NULL DEFAULT FALSE,
                 data_source VARCHAR(100) NOT NULL DEFAULT 'CPCB',
-                ingested_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                ingested_at TIMESTAMP NOT NULL DEFAULT {now_fn},
                 UNIQUE(city, date, data_source)
             )
         """))
@@ -110,7 +126,8 @@ def migrate_real_data(engine):
     df['data_source'] = 'CPCB'
     df['ingested_at'] = datetime.now(timezone.utc)
 
-    df.to_sql('city_measurements', engine, if_exists='append', index=False, method='multi')
+    df.to_sql('city_measurements', engine, if_exists='append', index=False,
+              method='multi', chunksize=CHUNKSIZE)
     logger.info(f"Inserted {len(df)} real rows from CPCB CSV.")
     return len(df)
 
@@ -133,7 +150,8 @@ def add_synthetic_data(engine):
             })
 
     df = pd.DataFrame(all_rows)
-    df.to_sql('city_measurements', engine, if_exists='append', index=False, method='multi')
+    df.to_sql('city_measurements', engine, if_exists='append', index=False,
+              method='multi', chunksize=CHUNKSIZE)
     logger.info(f"Inserted {len(df)} synthetic rows across {len(CITIES)} cities.")
     return len(df)
 
@@ -141,7 +159,7 @@ def add_synthetic_data(engine):
 def create_legacy_view(engine):
     """Create city_day view for backward compatibility."""
     with engine.connect() as conn:
-        conn.execute(sa_text("DROP TABLE IF EXISTS city_day CASCADE"))
+        conn.execute(sa_text(f"DROP TABLE IF EXISTS city_day{_cascade(engine)}"))
         conn.execute(sa_text("""
             CREATE VIEW city_day AS
             SELECT
@@ -236,7 +254,7 @@ def main():
             logger.info("city_measurements table already exists. Dropping and recreating...")
             with engine.connect() as conn:
                 conn.execute(sa_text("DROP VIEW IF EXISTS city_day"))
-                conn.execute(sa_text("DROP TABLE IF EXISTS city_measurements CASCADE"))
+                conn.execute(sa_text(f"DROP TABLE IF EXISTS city_measurements{_cascade(engine)}"))
                 conn.commit()
 
         create_provenance_schema(engine)

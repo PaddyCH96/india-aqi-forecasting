@@ -31,9 +31,14 @@ def retry(max_attempts=3, delay=2, backoff=2, exceptions=(Exception,)):
     return decorator
 
 
+SUPPORTED_DB_SCHEMES = ("postgresql://", "sqlite:///")
+
+
 def validate_db_url(url: str = DB_URL) -> bool:
-    if not url.startswith("postgresql://"):
+    """PostgreSQL is the production backend; SQLite backs the bundled demo."""
+    if not url.startswith(SUPPORTED_DB_SCHEMES):
         raise ValueError(
-            f"Invalid DB_URL: must start with 'postgresql://', got '{url[:30]}...'"
+            "Invalid DB_URL: must start with one of "
+            f"{', '.join(SUPPORTED_DB_SCHEMES)}, got '{url[:30]}...'"
         )
     return True

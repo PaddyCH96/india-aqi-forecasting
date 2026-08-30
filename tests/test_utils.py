@@ -83,12 +83,16 @@ class TestValidateDbUrl:
     def test_valid_postgresql_url(self):
         assert validate_db_url("postgresql://localhost/mydb") is True
 
-    def test_raises_on_missing_prefix(self):
-        with pytest.raises(ValueError, match="must start with 'postgresql://'"):
-            validate_db_url("sqlite:///test.db")
+    def test_accepts_sqlite(self):
+        """SQLite backs the bundled demo database."""
+        assert validate_db_url("sqlite:///test.db") is True
+
+    def test_raises_on_unsupported_scheme(self):
+        with pytest.raises(ValueError, match="must start with"):
+            validate_db_url("mysql://localhost/mydb")
 
     def test_raises_on_empty_string(self):
-        with pytest.raises(ValueError, match="must start with 'postgresql://'"):
+        with pytest.raises(ValueError, match="must start with"):
             validate_db_url("")
 
     def test_uses_default_url(self):

@@ -106,22 +106,45 @@ docker compose --profile api up --build
 # API docs at http://localhost:8000/docs
 ```
 
-### A note on data in a fresh clone
+### Data in a fresh clone
 
-The raw CPCB/OpenAQ extracts are not committed (they are large, and redistribution
-terms vary). On a fresh clone `scripts/seed_data.py` falls back to generating
-synthetic data — roughly 9,900 rows across 6 cities — and every row is tagged
-`is_synthetic = true`.
+A read-only SQLite database ships with the repo at `data/aqi_demo.db` (9.8 MB):
 
-Because provenance is enforced rather than assumed, synthetic rows are **excluded
-by default**. To see the seeded data:
+| Rows | Source | Cities |
+|------|--------|--------|
+| 29,531 | CPCB daily city aggregates (real) | 26 |
+| 9,870 | synthetic fallback, tagged `is_synthetic` | 6 |
 
-- **Dashboard** — tick *"Include synthetic data (2020-2024)"* in the sidebar.
-- **API** — pass `?use_synthetic=true`, e.g. `/cities?use_synthetic=true`.
+With no `AQI_DB_URL` set the app uses that file, so `streamlit run scripts/dashboard.py`
+works on a fresh clone with no database server. Set `AQI_DB_URL` to point at PostgreSQL
+instead — Docker and the Render blueprint both do.
 
-Without that flag a fresh clone correctly reports no real data — `/cities` returns
-`{"cities": [], "count": 0}`. That is the provenance guarantee working, not a bug.
-The 26-city, 700K-record figures quoted above come from the full ingested dataset.
+Real rows are shown by default; synthetic rows are excluded until you tick
+*"Include synthetic data"* in the sidebar, or pass `?use_synthetic=true` to the API.
+That separation is enforced in SQL, not assumed.
+
+The larger hourly and station-level extracts (`city_hour.csv` at 707,875 rows,
+`station_hour.csv` at ~4M) are not committed — they are too large for the repo. The
+26-city, 700K-record figures in Key Results come from those full extracts.
+
+**Data attribution:** air quality measurements are published by the Central Pollution
+Control Board (CPCB), Government of India.
+
+### Deploy your own (free)
+
+**Streamlit Community Cloud** — free, no card, no expiry:
+
+1. [share.streamlit.io](https://share.streamlit.io) -> sign in with GitHub
+2. **New app** -> this repo -> branch `main`
+3. Main file path: `scripts/dashboard.py`
+4. **Deploy**
+
+No database or secrets to configure — the bundled `data/aqi_demo.db` is used
+automatically. Apps sleep after ~7 days idle and wake on the next visit.
+
+**Render** — if you want PostgreSQL and the REST API, `render.yaml` is a Blueprint:
+Render dashboard -> New -> Blueprint -> this repo -> Apply. Note that Render's free
+PostgreSQL instances expire after 30 days.
 
 ### Local Setup
 

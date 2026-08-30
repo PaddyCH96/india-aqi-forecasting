@@ -17,3 +17,6 @@ htmlcov/
 .ruff_cache/
 .venv/
 models/
+
+# bundled read-only demo database (powers the free hosted demo)
+!data/aqi_demo.db
