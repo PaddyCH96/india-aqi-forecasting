@@ -36,7 +36,7 @@ def load_city_pollutants(
 ) -> pd.DataFrame:
     syn_filter = _synthetic_filter(use_synthetic)
     query = sa_text(f"""
-        SELECT date, pm2_5, pm10, no, no2, nox, nh3, co, so2, o3,
+        SELECT city, date, pm2_5, pm10, no, no2, nox, nh3, co, so2, o3,
                benzene, toluene, xylene, aqi, aqi_bucket,
                is_synthetic, data_source
         FROM city_measurements

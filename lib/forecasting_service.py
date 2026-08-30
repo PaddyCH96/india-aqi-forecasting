@@ -12,6 +12,9 @@ from lib.db import get_engine, load_city_pollutants
 from lib.feature_engineering import build_feature_pipeline
 from lib.ml_pipeline import prepare_ml_data
 from lib.model_training import train_xgboost
+from lib.logging import setup_logger
+
+logger = setup_logger(__name__)
 from lib.ml_pipeline import time_based_split
 
 
@@ -67,12 +70,21 @@ def train_and_save_model(
 
 
 def load_model(city: str, model_type: str = "xgboost") -> dict | None:
-    """Load a saved model from disk."""
+    """Load a saved model from disk.
+
+    Committed pickles can fail to load under a different xgboost or scikit-learn
+    build than the one that wrote them. Treat that as "no model available" so the
+    caller offers retraining instead of raising.
+    """
     path = get_model_path(city, model_type)
     if not os.path.exists(path):
         return None
-    with open(path, "rb") as f:
-        return pickle.load(f)
+    try:
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    except Exception as exc:  # noqa: BLE001 - unpickling can raise almost anything
+        logger.warning("Could not load %s model for %s: %s", model_type, city, exc)
+        return None
 
 
 def predict_future(

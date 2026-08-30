@@ -113,7 +113,18 @@ def load_pollutant_data(cities):
 
 @st.cache_data(ttl=300)
 def load_hourly_data(cities):
-    from sqlalchemy import text as sa_text
+    """Hourly data is optional.
+
+    city_hourly_measurements is built by scripts/ingest_hourly.py from
+    data/raw/city_hour.csv, which is not committed. Deployments without it
+    (the bundled SQLite demo) return an empty frame; the Hourly Patterns
+    section is skipped rather than raising.
+    """
+    from sqlalchemy import text as sa_text, inspect as sa_inspect
+
+    if not sa_inspect(engine).has_table("city_hourly_measurements"):
+        return pd.DataFrame()
+
     dfs = []
     for city in cities:
         df = pd.read_sql(
@@ -467,10 +478,12 @@ if has_model:
 
         for _, row in forecast_df.iterrows():
             pred = row["prediction"]
+            # row["date"] may arrive as a Timestamp or a string depending on backend
+            day = pd.to_datetime(row["date"]).strftime("%Y-%m-%d")
             if pred > 200:
-                st.warning(f"⚠️ **{row['date'][:10]}**: AQI {pred:.0f} — Poor air quality expected")
+                st.warning(f"⚠️ **{day}**: AQI {pred:.0f} — Poor air quality expected")
             elif pred > 100:
-                st.info(f"ℹ️ **{row['date'][:10]}**: AQI {pred:.0f} — Moderate air quality expected")
+                st.info(f"ℹ️ **{day}**: AQI {pred:.0f} — Moderate air quality expected")
 
     else:
         st.warning(f"Forecast unavailable: {forecast_data.get('message', 'Unknown error')}")
