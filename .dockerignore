@@ -1,0 +1,35 @@
+# Virtualenvs — never ship into the image
+venv/
+.venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# Git / CI
+.git/
+.github/
+.gitignore
+
+# Local data and artifacts (seeded in-container via scripts/seed_data.py)
+data/raw/
+data/interim/
+outputs/
+notebooks/
+*.ipynb
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Docs not needed at runtime
+docs/
+*.md
+!README.md

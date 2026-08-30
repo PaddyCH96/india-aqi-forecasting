@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Fetch recent AQI data from Open-Meteo API with provenance flags."""
 
-from pathlib import Path
+import os
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from lib.pathing import ensure_project_root_on_path
+
+ensure_project_root_on_path()
 
 import pandas as pd
 import requests
@@ -33,7 +39,7 @@ def fetch_city_data(city, coords):
         'longitude': coords['lon'],
         'start_date': '2020-07-01',
         'end_date': '2024-12-31',
-        'daily': ['pm10', 'pm2_5'],
+        'hourly': ['pm10', 'pm2_5'],
         'timezone': 'Asia/Kolkata'
     }
 
@@ -43,11 +49,11 @@ def fetch_city_data(city, coords):
         response.raise_for_status()
         data = response.json()
 
-        if 'daily' in data and data['daily']:
+        if 'hourly' in data and data['hourly']:
             df = pd.DataFrame({
-                'date': pd.to_datetime(data['daily']['time']),
-                'pm25': data['daily']['pm2_5'],
-                'pm10': data['daily']['pm10'],
+                'date': pd.to_datetime(data['hourly']['time']),
+                'pm25': data['hourly']['pm2_5'],
+                'pm10': data['hourly']['pm10'],
                 'city': city,
             })
             df['aqi'] = df['pm25'].apply(pm25_to_aqi).round(0)

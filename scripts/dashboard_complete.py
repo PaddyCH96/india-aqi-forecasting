@@ -1,7 +1,13 @@
-from pathlib import Path
+import os
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from lib.pathing import ensure_project_root_on_path
+
+ensure_project_root_on_path()
 
 import streamlit as st
 import pandas as pd
