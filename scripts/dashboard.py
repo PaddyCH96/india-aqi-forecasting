@@ -51,8 +51,8 @@ from lib.analysis import (
 )
 from lib.forecasting_service import (
     get_forecast_for_dashboard,
-    list_trained_models,
-    train_and_save_model,
+    forecast_with_baseline,
+    load_backtest_results,
 )
 
 warnings.filterwarnings("ignore")
@@ -159,6 +159,94 @@ if df.empty:
 
 df_hourly = load_hourly_data(selected_cities)
 
+# ─── Case Study ──────────────────────────────────────────────────
+st.markdown("---")
+with st.expander("📄 **Case study — what this project set out to do, and what it found**", expanded=False):
+    st.markdown("""
+### The question
+
+Can day-to-day air quality in Indian cities be forecast well enough to be
+useful — and how would we know if it could?
+
+India runs one of the world's largest air quality monitoring networks through
+the Central Pollution Control Board. This project takes 29,531 daily records
+across 26 cities from 2015 to 2020 and asks whether machine learning can
+predict what tomorrow, next week, or the week after will look like.
+
+### What was built
+
+A pipeline that ingests the CPCB records, tracks the provenance of every row,
+engineers 66 predictive features per city, and trains gradient-boosted models
+to forecast AQI at 1, 3, 7 and 14 days ahead — with a dashboard and REST API
+on top.
+
+### The finding that mattered
+
+**The first version of this project reported 0.8–3.2% forecast error. That
+number was wrong, and finding out why is the most useful thing here.**
+
+Two features leaked the answer into the inputs:
+
+- `aqi_city_zscore` was computed as *(today's AQI − city mean) ÷ city standard
+  deviation*. It is an invertible function of the very value being predicted —
+  correlation with the target was exactly **1.000**. The model could read the
+  answer off it.
+- Rolling averages such as `aqi_roll3_mean` were computed over a window that
+  **included the current day**, putting a third of the answer inside its own
+  predictor.
+
+Both are now computed from prior days only. And the "forecast" itself was
+holding every feature frozen at its last observed value, so it returned the
+same number for every future day — a flat line presented as a prediction.
+
+### What honest measurement showed
+
+Rebuilt properly — one model per horizon, calendar features advanced to the
+date being predicted, rolling-origin backtests scored over held-out blocks of
+90 days — the picture changes completely:
+
+| Days ahead | Model error | Persistence baseline | Verdict |
+|---|---|---|---|
+| 1 day | ~15% | ~16% | Model marginally ahead |
+| 3 days | ~31% | ~31% | Level |
+| 7 days | ~37% | ~36% | Baseline ahead |
+| 14 days | ~47% | ~40% | Baseline clearly ahead |
+
+*(Delhi; full per-city figures in the Forecasting section below.)*
+
+**Persistence** — simply assuming tomorrow looks like today — is a remarkably
+strong baseline for daily AQI, and across six cities the machine learning model
+beat it reliably only for Delhi at one to three days. Three separate attempts
+to improve on it (removing the leakage, direct per-horizon models, and
+predicting the change rather than the level) did not overturn that.
+
+### Why report a negative result
+
+Because it is the true one, and because a model that cannot beat "tomorrow is
+like today" is not adding value no matter how sophisticated it looks. The
+honest conclusion for this data is:
+
+1. **Short-range forecasting works.** One to three days out, there is real
+   signal beyond persistence.
+2. **Beyond a week, daily city-level AQI is close to unpredictable** from
+   historical readings alone. Meteorological inputs — wind, temperature
+   inversion, rainfall — are what the model is missing, not more trees.
+3. **Data quality determines accuracy far more than model choice.** Mumbai has
+   61% of daily AQI records missing; no algorithm recovers from that.
+
+### What I would do next
+
+Add meteorological covariates, which is the single change most likely to move
+long-horizon skill. Extend to a live data feed so the forecasts concern
+tomorrow rather than a historical hold-out. And forecast the pollutants
+themselves rather than freezing them, which is the main structural limit on
+the current recursive approach.
+""")
+    st.caption(
+        "Full write-up, including the five headline findings and their evidence, "
+        "is in CASE_STUDY.md and INSIGHTS.md in the repository."
+    )
+
 # ─── Overview Metrics ────────────────────────────────────────────
 st.markdown("---")
 kpi_cols = st.columns(5)
@@ -203,12 +291,18 @@ with col1:
     ranking = city_ranking(df, metric=pollutant)
     plot_city_ranking(ax, ranking, metric="Mean", title=f"City Ranking by Mean {pollutant.upper()}")
     st.pyplot(fig)
+    st.caption(
+        "Each bar is one city's average air quality over the period you selected. Longer bars mean dirtier air. The ordering is what matters more than the exact numbers — it shows which cities carry the heaviest pollution burden."
+    )
 
 with col2:
     fig, ax = plt.subplots(figsize=(8, 5))
     dist = aqi_distribution(df)
     plot_aqi_category_bars(ax, dist, top_n=min(26, len(selected_cities)))
     st.pyplot(fig)
+    st.caption(
+        "The same cities broken into official AQI categories, from Good to Severe. A bar that is mostly green means most days are breathable; mostly red or purple means residents spend much of the year in unhealthy air."
+    )
 
 # Trend overview
 st.subheader("National Trend Overview")
@@ -223,6 +317,9 @@ ax.set_ylabel(pollutant.upper())
 ax.legend(fontsize=8)
 ax.grid(True, alpha=0.3)
 st.pyplot(fig)
+st.caption(
+    "The national picture over time. A falling line means air is getting cleaner across the country; a rising one means the opposite. The sharp improvement in early 2020 is the COVID lockdown, when traffic and industry largely stopped."
+)
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE 2: HISTORICAL TRENDS
@@ -237,6 +334,9 @@ with tab_a:
     fig, ax = plt.subplots(figsize=(14, 5))
     plot_multi_city_trends(ax, df, selected_cities, pollutant=pollutant, freq=freq)
     st.pyplot(fig)
+    st.caption(
+        "One line per city, so you can compare how their pollution moves over time. Lines that rise and fall together suggest a shared cause — weather or season — rather than anything specific to one city."
+    )
 
 with tab_b:
     col_a, col_b = st.columns(2)
@@ -274,6 +374,9 @@ with tab_c:
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
     st.pyplot(fig)
+    st.caption(
+        "The same data averaged by month, which strips out day-to-day noise and makes the yearly rhythm easier to see. Most Indian cities peak in winter and clear in the monsoon."
+    )
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE 3: POLLUTANT DRILL-DOWN
@@ -303,12 +406,18 @@ with tab_d:
         ax.tick_params(labelsize=8)
     plt.tight_layout()
     st.pyplot(fig)
+    st.caption(
+        "How often each pollutant takes each value. A tall spike on the left means readings are usually low, with occasional bad days forming the long tail to the right — and it is those tail days that cause most harm."
+    )
 
 with tab_e:
     corr_df = correlation_matrix(df)
     fig, ax = plt.subplots(figsize=(10, 8))
     plot_correlation_heatmap(ax, corr_df)
     st.pyplot(fig)
+    st.caption(
+        "How closely pollutants move together. Dark red squares mean two pollutants rise and fall almost in lockstep, usually because they come from the same source, such as vehicle exhaust or crop burning."
+    )
 
     st.subheader("PM2.5 vs PM10 Relationship")
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -321,6 +430,9 @@ with tab_e:
     ax.grid(True, alpha=0.3)
     ax.set_title("PM2.5 vs PM10 by City")
     st.pyplot(fig)
+    st.caption(
+        "Each dot is one day in one city, comparing fine particles (PM2.5) with coarser dust (PM10). Dots forming a tight upward line mean the two travel together, so a single source is likely driving both."
+    )
 
 with tab_f:
     if not df_hourly.empty:
@@ -352,6 +464,9 @@ with col_a:
     plot_history(ax, df[df["city"] == focus_city].rename(
         columns={"date": "ds", "aqi": "y"}), focus_city, show_covid=True)
     st.pyplot(fig)
+    st.caption(
+        "The full history for this city, day by day. The repeating peaks are winters; the troughs are monsoon months when rain washes particles out of the air."
+    )
 
 with col_b:
     fig, ax = plt.subplots(figsize=(8, 4))
@@ -370,6 +485,9 @@ ax.set_xlabel("Year")
 ax.set_ylabel(pollutant.upper())
 ax.grid(True, alpha=0.3, axis="y")
 st.pyplot(fig)
+st.caption(
+    "One bar per year, with the whisker showing how much the readings varied within that year. A shrinking bar means cleaner air; a shorter whisker means more consistent air rather than wild swings."
+)
 
 # Summary stats for focus city
 st.subheader(f"{focus_city}: Pollutant Summary")
@@ -387,6 +505,9 @@ with tab_g:
     fig, ax = plt.subplots(figsize=(12, 8))
     plot_missing_heatmap(ax, missing)
     st.pyplot(fig)
+    st.caption(
+        "Where the monitoring data is missing. Dark cells are gaps in the record. This matters because a city cannot be managed if it is not measured — and it is why some cities in this dashboard carry less confident numbers."
+    )
 
     st.subheader("Data Completeness Warnings")
     for _, row in missing.iterrows():
@@ -419,109 +540,107 @@ with tab_h:
 st.header("6️⃣ AQI Forecasting")
 
 forecast_city = st.selectbox("Forecast City", selected_cities, key="forecast_city")
-horizon = st.select_slider("Forecast Horizon", options=[24, 48, 72, 168, 336],
-                            value=72, format_func=lambda x: f"{x}h ({x//24}d)")
+horizon_days = st.select_slider(
+    "Forecast horizon (days)", options=[1, 3, 7, 14], value=7,
+    format_func=lambda d: f"{d} day" + ("" if d == 1 else "s"),
+)
 
-# Check if model exists; show training option
-trained_models = list_trained_models()
-has_model = any(m["city"] == forecast_city for m in trained_models)
+st.caption(
+    "**How to read this.** Each day ahead is predicted by its own model, using "
+    "only information available on the forecast date. The grey line is the "
+    "*persistence* baseline — simply assuming tomorrow looks like today. A "
+    "forecast is only worth having if it beats that line, so both are shown."
+)
 
-col_a, col_b, col_c = st.columns([1, 1, 2])
-with col_a:
-    if not has_model:
-        if st.button(f"🚀 Train Model for {forecast_city}"):
-            with st.spinner(f"Training XGBoost for {forecast_city}..."):
-                result = train_and_save_model(forecast_city, use_synthetic=use_synthetic, engine=engine)
-                if "error" in result:
-                    st.error(result["error"])
-                else:
-                    st.success(f"Model trained! RMSE: {result['metrics']['rmse']:.1f}, MAPE: {result['metrics']['mape']:.1f}%")
-                    st.rerun()
+_bt = load_backtest_results()
+_city_bt = (_bt or {}).get("cities", {}).get(forecast_city, {})
 
-with col_b:
-    if has_model:
-        models_for_city = [m for m in trained_models if m["city"] == forecast_city]
-        for m in models_for_city:
-            st.caption(f"Trained: {m['trained_at'][:10]} | Size: {m['size_kb']}KB")
+@st.cache_data(ttl=1800, show_spinner=False)
+def _cached_forecast(city, days, synthetic):
+    """Fitting one model per horizon is not free -- cache per (city, days)."""
+    return forecast_with_baseline(city, days=days, use_synthetic=synthetic)
 
-if has_model:
-    with st.spinner("Generating forecast..."):
-        forecast_data = get_forecast_for_dashboard(
-            forecast_city, horizon_hours=horizon,
-            use_synthetic=use_synthetic, engine=engine
-        )
 
-    if forecast_data["status"] == "ok":
-        forecast_df = pd.DataFrame(forecast_data["forecast"])
+with st.spinner(
+    f"Fitting {horizon_days} per-horizon models for {forecast_city} "
+    "(cached afterwards)..."
+):
+    result = _cached_forecast(forecast_city, horizon_days, use_synthetic)
 
-        with col_c:
-            st.metric("Model", forecast_data["model"])
-            st.metric("Horizon", f"{horizon}h ({horizon//24}d)")
-
-        fig, ax = plt.subplots(figsize=(14, 5))
-
-        actual = df[df["city"] == forecast_city].dropna(subset=["aqi"]).tail(60)
-        ax.plot(actual["date"], actual["aqi"], "o-", color="steelblue",
-                alpha=0.7, label="Historical AQI", markersize=3)
-
-        ax.plot(pd.to_datetime(forecast_df["date"]), forecast_df["prediction"],
-                "s-", color="crimson", label="Forecast", markersize=4, linewidth=2)
-
-        if "lower_bound" in forecast_df.columns:
-            ax.fill_between(pd.to_datetime(forecast_df["date"]),
-                            forecast_df["lower_bound"],
-                            forecast_df["upper_bound"],
-                            alpha=0.2, color="crimson",
-                            label="Confidence (85-115%)")
-
-        ax.axvline(x=actual["date"].max(), color="gray", linestyle="--", alpha=0.5)
-        ax.set_title(f"{forecast_city}: {horizon}h AQI Forecast")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("AQI")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        fig.autofmt_xdate()
-        st.pyplot(fig)
-
-        st.subheader("Forecast Values")
-        st.dataframe(
-            forecast_df.rename(columns={
-                "date": "Date", "prediction": "Predicted AQI",
-                "lower_bound": "Lower Bound", "upper_bound": "Upper Bound"
-            }).set_index("Date"),
-            use_container_width=True
-        )
-
-        for _, row in forecast_df.iterrows():
-            pred = row["prediction"]
-            # row["date"] may arrive as a Timestamp or a string depending on backend
-            day = pd.to_datetime(row["date"]).strftime("%Y-%m-%d")
-            if pred > 200:
-                st.warning(f"⚠️ **{day}**: AQI {pred:.0f} — Poor air quality expected")
-            elif pred > 100:
-                st.info(f"ℹ️ **{day}**: AQI {pred:.0f} — Moderate air quality expected")
-
-    else:
-        st.warning(f"Forecast unavailable: {forecast_data.get('message', 'Unknown error')}")
-        st.info("Train the model using the button above and try again.")
-
-    # Model comparison
-    st.subheader("Model Inventory")
-    all_trained = list_trained_models()
-    if all_trained:
-        st.dataframe(pd.DataFrame(all_trained), use_container_width=True)
-    else:
-        st.info("No models trained yet. Train a model to see it here.")
-
+if result is None:
+    st.warning(
+        f"Not enough history for {forecast_city} to forecast responsibly. "
+        "Cities with large monitoring gaps are excluded rather than given a "
+        "confident-looking number."
+    )
 else:
-    st.info("No trained model for this city. Click 'Train Model' to get started.")
-    st.markdown("""
-    **How it works:**
-    - Uses XGBoost regression with engineered features (lags, rolling stats, seasonals)
-    - Trained on CPCB data (2015–2020) with time-based split
-    - 85-115% confidence intervals
-    - One model per city (trained on-demand)
-    """)
+    fdf = result["forecast"]
+
+    fig, ax = plt.subplots(figsize=(14, 5))
+    actual = df[df["city"] == forecast_city].dropna(subset=["aqi"]).tail(60)
+    ax.plot(actual["date"], actual["aqi"], "o-", color="steelblue",
+            alpha=0.7, label="Observed AQI", markersize=3)
+    ax.plot(pd.to_datetime(fdf["date"]), fdf["prediction"], "s-",
+            color="crimson", label="Model forecast", markersize=4, linewidth=2)
+    ax.plot(pd.to_datetime(fdf["date"]), fdf["persistence"], "--",
+            color="gray", label="Persistence baseline", linewidth=2)
+    ax.axvline(x=actual["date"].max(), color="gray", linestyle=":", alpha=0.6)
+    ax.set_title(f"{forecast_city}: {horizon_days}-day AQI forecast vs baseline")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("AQI")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
+    st.caption(
+        f"Blue is what actually happened over the last 60 days. Red is the "
+        f"forecast for the next {horizon_days} days; grey is the baseline. "
+        "Where red sits close to grey, the model is adding little."
+    )
+
+    st.subheader("Measured accuracy, by how far ahead")
+    if _city_bt.get("horizons"):
+        rows = []
+        for h_str, m in sorted(_city_bt["horizons"].items(), key=lambda kv: int(kv[0])):
+            skill = m.get("skill_vs_persistence_pct")
+            rows.append({
+                "Days ahead": int(h_str),
+                "Model error (MAPE)": f"{m['model_mape']:.1f}%" if m.get("model_mape") else "—",
+                "Persistence error": f"{m['persistence_mape']:.1f}%" if m.get("persistence_mape") else "—",
+                "Model vs baseline": (f"{skill:+.1f}%" if skill is not None else "—"),
+                "Better method": "Model" if (skill or 0) > 0 else "Persistence",
+            })
+        st.dataframe(pd.DataFrame(rows).set_index("Days ahead"),
+                     use_container_width=True)
+        st.caption(
+            "MAPE is average error as a percentage of the true AQI — lower is "
+            "better. These come from a rolling backtest on held-out periods "
+            f"({_city_bt.get('n_folds', 0)} folds, hundreds of predictions per "
+            "horizon), not from data the models trained on. Where the last "
+            "column says *Persistence*, the machine learning model is not "
+            "earning its place at that range."
+        )
+    else:
+        st.info("No backtest on record for this city. Run `python scripts/backtest.py`.")
+
+    st.subheader("Forecast values")
+    show = fdf.copy()
+    show["date"] = pd.to_datetime(show["date"]).dt.strftime("%Y-%m-%d")
+    st.dataframe(
+        show.rename(columns={
+            "date": "Date", "horizon": "Days ahead",
+            "prediction": "Model AQI", "persistence": "Baseline AQI",
+        }).set_index("Date"),
+        use_container_width=True,
+    )
+
+    for _, row in fdf.iterrows():
+        pred = row["prediction"]
+        day = pd.to_datetime(row["date"]).strftime("%Y-%m-%d")
+        if pred > 200:
+            st.warning(f"⚠️ **{day}**: AQI {pred:.0f} — poor air quality expected")
+        elif pred > 100:
+            st.info(f"ℹ️ **{day}**: AQI {pred:.0f} — moderate air quality expected")
 
 st.markdown("---")
 st.markdown(

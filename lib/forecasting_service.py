@@ -199,3 +199,119 @@ def list_trained_models() -> list[dict]:
                 "trained_at": datetime.fromtimestamp(mtime).isoformat(),
             })
     return models
+
+
+# ---------------------------------------------------------------------------
+# Honest forecasting: direct per-horizon models, with the baseline alongside
+# ---------------------------------------------------------------------------
+
+
+def forecast_with_baseline(
+    city: str,
+    days: int = 7,
+    target: str = "aqi",
+    use_synthetic: bool = False,
+    engine=None,
+) -> dict | None:
+    """Forecast ``days`` ahead and return the persistence baseline with it.
+
+    Replaces predict_future, which held every feature at its last observed value
+    and so returned the same number for every day -- a flat line presented as a
+    forecast. Here a separate model is fit per horizon, mapping features known
+    today to the AQI that many days out, so the curve actually varies.
+
+    The persistence baseline is returned alongside because, on this data, it
+    wins beyond about three days. Showing both is the honest presentation.
+    """
+    from lib.backtesting import make_direct_dataset, persistence_forecast
+    from lib.feature_engineering import build_feature_pipeline
+    from lib.ml_pipeline import get_feature_names, prepare_ml_data
+    from lib.model_training import train_xgboost
+
+    if engine is None:
+        engine = get_engine()
+    history = load_city_pollutants(engine, city, use_synthetic=use_synthetic)
+    if history.empty or history[target].notna().sum() < 400:
+        return None
+    history = history.copy()
+    history["city"] = city
+
+    feat = build_feature_pipeline(history, target=target)
+    names = get_feature_names(feat, target=target)
+    last_date = pd.to_datetime(feat["date"].iloc[-1])
+
+    rows = []
+    for h in range(1, days + 1):
+        try:
+            X, y = make_direct_dataset(feat, target, h, names)
+            X_train, _, y_train, _ = prepare_ml_data(X, y, X.tail(1), y.tail(1))
+            trained = train_xgboost(X_train, y_train, X_train.tail(1), y_train.tail(1))
+            model, used = trained["model"], list(X_train.columns)
+
+            latest = feat.iloc[-1]
+            target_date = last_date + timedelta(days=h)
+            calendar = _calendar_for(target_date)
+            vector = {}
+            for name in used:
+                if name in calendar:
+                    vector[name] = calendar[name]
+                    continue
+                value = latest.get(name, float("nan")) if name in feat.columns else float("nan")
+                vector[name] = 0.0 if pd.isna(value) else float(value)
+            pred = max(float(model.predict(pd.DataFrame([vector]))[0]), 0.0)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s h=%d forecast failed: %s", city, h, exc)
+            continue
+        rows.append({"date": last_date + timedelta(days=h),
+                     "horizon": h, "prediction": round(pred, 1)})
+
+    if not rows:
+        return None
+
+    forecast = pd.DataFrame(rows)
+    baseline = persistence_forecast(history, days, target)
+    forecast = forecast.merge(
+        baseline[["horizon", "prediction"]].rename(
+            columns={"prediction": "persistence"}),
+        on="horizon", how="left",
+    )
+    return {
+        "city": city,
+        "forecast": forecast,
+        "last_observed": float(history[target].dropna().iloc[-1]),
+        "last_date": last_date,
+    }
+
+
+def _calendar_for(when) -> dict:
+    """Calendar values for a future date -- known in advance, not predicted."""
+    import numpy as np
+    when = pd.Timestamp(when)
+    return {
+        "hour": float(when.hour),
+        "day_of_week": float(when.dayofweek),
+        "month": float(when.month),
+        "quarter": float(when.quarter),
+        "is_weekend": float(when.dayofweek >= 5),
+        "month_sin": float(np.sin(2 * np.pi * when.month / 12)),
+        "month_cos": float(np.cos(2 * np.pi * when.month / 12)),
+        "dow_sin": float(np.sin(2 * np.pi * when.dayofweek / 7)),
+        "dow_cos": float(np.cos(2 * np.pi * when.dayofweek / 7)),
+    }
+
+
+def load_backtest_results() -> dict | None:
+    """Read data/backtest_results.json, the source of the accuracy figures."""
+    import json
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "backtest_results.json",
+    )
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as fh:
+            return json.load(fh)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not read backtest results: %s", exc)
+        return None

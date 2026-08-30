@@ -2,14 +2,14 @@
   <h1 align="center">India Air Quality Forecasting</h1>
   <p align="center">
     <strong>700K+ records · 26 cities · 12 pollutants · 5.5 years</strong><br>
-    <em>XGBoost forecasts at 0.8–3.2% MAPE — 10–20× better than seasonal-naive baselines</em>
+    <em>An honest forecasting benchmark: what daily AQI prediction can and cannot do</em>
   </p>
   <p align="center">
     <a href="https://india-aqi-forecasting-ujpesuvlw7zjgysapt8ff8.streamlit.app">
       <img alt="Live demo" src="https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white"></a>
     <a href="https://github.com/PaddyCH96/india-aqi-forecasting/actions/workflows/test.yml">
       <img alt="Tests" src="https://github.com/PaddyCH96/india-aqi-forecasting/actions/workflows/test.yml/badge.svg"></a>
-    <img alt="Tests count" src="https://img.shields.io/badge/tests-145%20passing-brightgreen">
+    <img alt="Tests count" src="https://img.shields.io/badge/tests-159%20passing-brightgreen">
     <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white">
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow"></a>
   </p>
@@ -31,26 +31,54 @@
 
 ## Key Results
 
-| City | XGBoost MAPE | Training Data | Data Quality |
-|------|:-----------:|:------------:|:-----------:|
-| Bengaluru | **0.8%** | 1,362 days | Excellent |
-| Hyderabad | **0.9%** | 1,332 days | Excellent |
-| Chennai | **0.9%** | 1,336 days | Very Good |
-| Delhi | **1.0%** | 1,451 days | Excellent |
-| Mumbai | **2.9%** | 227 days | **Critical gaps** |
-| Kolkata | **3.2%** | 206 days | Limited |
+Forecast error (MAPE, lower is better) from a rolling backtest on held-out
+periods — never on data the models trained on. **Persistence** means simply
+assuming tomorrow looks like today.
 
-**The system beats naive baselines by 10–20×** (Moving Average: 12–25% MAPE, Seasonal Naive: 31–64% MAPE).
+| City | 1 day | 3 days | 7 days | 14 days |
+|---|:--:|:--:|:--:|:--:|
+| | model / persistence | model / persistence | model / persistence | model / persistence |
+| Bengaluru | 11 / 10 | 17 / 15 | 19 / 18 | 21 / 19 |
+| Mumbai | 13 / 13 | 36 / 25 | 33 / 27 | 46 / 31 |
+| Hyderabad | 14 / 13 | 32 / 24 | 35 / 30 | 41 / 32 |
+| Delhi | **15 / 16** | 31 / 31 | 37 / 36 | 47 / 40 |
+| Kolkata | 17 / 17 | 39 / 27 | 36 / 31 | **37 / 38** |
+| Chennai | 23 / 18 | 41 / 27 | 48 / 31 | 49 / 33 |
+
+**The headline finding is a negative one, and it is the point of the project.**
+Persistence is a very strong baseline for daily city-level AQI. Across six
+cities and four horizons, gradient boosting beat it reliably only for Delhi at
+one to three days. Three attempts to improve on that — removing target leakage,
+training one model per horizon, and predicting the change rather than the level
+— did not overturn it.
+
+### Why an earlier version claimed 0.8–3.2%
+
+Two engineered features leaked the target into the inputs:
+
+- `aqi_city_zscore` was *(today's AQI − city mean) ÷ city std* — an invertible
+  function of the value being predicted, correlating **1.000** with it.
+- Rolling means such as `aqi_roll3_mean` used windows that **included the
+  current day**.
+
+The forecast also held every feature at its last observed value, returning the
+same number for every future day. Both are fixed, and
+[`tests/test_backtesting.py`](tests/test_backtesting.py) fails if either
+regresses.
+
+What the honest numbers say: short-range forecasting has real signal; beyond a
+week, historical AQI alone is close to unpredictable, and meteorological inputs
+— not more trees — are what is missing.
 
 ---
 
 ## Features
 
 - **6-page analytics dashboard** — Executive summary, trends, pollutant drill-down, city deep-dive, data quality, ML forecasting
-- **XGBoost + Random Forest models** — 66 features per city (lags, rolling stats, seasonal cycles, pollutant interactions)
+- **Direct per-horizon XGBoost models** — 66 leakage-checked features per city, one model per forecast horizon, benchmarked against persistence and climatology
 - **Data provenance** — Every row tagged as real/synthetic with source tracking
 - **REST API** — FastAPI with `/forecast/{city}`, `/validate/{city}`, `/data/freshness`
-- **145 tests** across 9 files, 95% coverage, Ruff-clean
+- **159 tests** across 10 files, including regression tests that fail if target leakage returns
 - **Runs three ways** — hosted on Streamlit Cloud with zero setup, `docker compose up` for the full PostgreSQL stack, or a bare clone against the bundled SQLite database
 
 ---
@@ -103,7 +131,7 @@
 | Data | pandas, numpy |
 | Infrastructure | Docker, Docker Compose |
 | CI/CD | GitHub Actions (pytest, ruff) |
-| Testing | pytest, pytest-cov (145 tests) |
+| Testing | pytest, pytest-cov (159 tests) |
 
 ---
 
@@ -213,9 +241,9 @@ streamlit run scripts/dashboard.py
 │   ├── api.py           #   FastAPI REST API
 │   ├── seed_data.py     #   Database bootstrap
 │   └── ingest_hourly.py #   Hourly data pipeline
-├── tests/               # 145 tests
+├── tests/               # 159 tests
 ├── docs/                # Architecture, EDA, deployment, ML eval
-├── models/              # Six trained XGBoost models (committed, 4.5 MB)
+├── models/              # (generated) legacy single-model artefacts, not used by the forecast
 ├── CASE_STUDY.md        # Portfolio narrative
 ├── INSIGHTS.md          # Top 5 findings with evidence
 └── Dockerfile + docker-compose.yml

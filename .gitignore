@@ -21,5 +21,3 @@ models/
 # bundled read-only demo database (powers the free hosted demo)
 !data/aqi_demo.db
 
-# trained models: committed so the hosted demo can forecast without retraining
-!models/*.pkl

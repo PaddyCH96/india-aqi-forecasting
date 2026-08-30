@@ -1,0 +1,391 @@
+{
+  "generated_at": "2026-08-30T13:41:18.773512+00:00",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "n_origins_requested": 4,
+  "method": "Expanding-window block backtest. At each fold a separate XGBoost model per horizon is fit on data before the block, then for every day t in a 90-day held-out block it predicts AQI at t+h from features known at t. Scored against persistence (value at t) and climatology (smoothed day-of-year mean) on identical (t, h) pairs.",
+  "cities": {
+    "Delhi": {
+      "n_folds": 4,
+      "horizons": {
+        "1": {
+          "model_mape": 15.07,
+          "model_rmse": 34.41,
+          "persistence_mape": 16.25,
+          "climatology_mape": 63.59,
+          "skill_vs_persistence_pct": 7.3,
+          "beats_persistence": true,
+          "n_points": 360
+        },
+        "3": {
+          "model_mape": 30.61,
+          "model_rmse": 70.62,
+          "persistence_mape": 31.3,
+          "climatology_mape": 63.8,
+          "skill_vs_persistence_pct": 2.2,
+          "beats_persistence": true,
+          "n_points": 360
+        },
+        "7": {
+          "model_mape": 37.02,
+          "model_rmse": 77.34,
+          "persistence_mape": 36.27,
+          "climatology_mape": 64.74,
+          "skill_vs_persistence_pct": -2.1,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "14": {
+          "model_mape": 47.14,
+          "model_rmse": 88.99,
+          "persistence_mape": 39.79,
+          "climatology_mape": 65.11,
+          "skill_vs_persistence_pct": -18.5,
+          "beats_persistence": false,
+          "n_points": 360
+        }
+      },
+      "intervals": {
+        "1": {
+          "lower": -34.98477172851563,
+          "upper": 44.10206451416016,
+          "n": 360
+        },
+        "3": {
+          "lower": -67.59447250366212,
+          "upper": 91.28759765625003,
+          "n": 360
+        },
+        "7": {
+          "lower": -84.83162078857423,
+          "upper": 98.1641555786133,
+          "n": 360
+        },
+        "14": {
+          "lower": -79.59158325195314,
+          "upper": 119.36340484619143,
+          "n": 360
+        }
+      }
+    },
+    "Mumbai": {
+      "n_folds": 2,
+      "horizons": {
+        "1": {
+          "model_mape": 13.28,
+          "model_rmse": 22.86,
+          "persistence_mape": 13.12,
+          "climatology_mape": 33.25,
+          "skill_vs_persistence_pct": -1.2,
+          "beats_persistence": false,
+          "n_points": 180
+        },
+        "3": {
+          "model_mape": 36.27,
+          "model_rmse": 40.54,
+          "persistence_mape": 24.66,
+          "climatology_mape": 33.23,
+          "skill_vs_persistence_pct": -47.1,
+          "beats_persistence": false,
+          "n_points": 180
+        },
+        "7": {
+          "model_mape": 33.24,
+          "model_rmse": 38.2,
+          "persistence_mape": 26.78,
+          "climatology_mape": 33.43,
+          "skill_vs_persistence_pct": -24.1,
+          "beats_persistence": false,
+          "n_points": 180
+        },
+        "14": {
+          "model_mape": 46.3,
+          "model_rmse": 44.58,
+          "persistence_mape": 31.13,
+          "climatology_mape": 34.06,
+          "skill_vs_persistence_pct": -48.7,
+          "beats_persistence": false,
+          "n_points": 180
+        }
+      },
+      "intervals": {
+        "1": {
+          "lower": -22.433946228027356,
+          "upper": 20.71736602783203,
+          "n": 180
+        },
+        "3": {
+          "lower": -36.41829376220704,
+          "upper": 54.70757751464843,
+          "n": 180
+        },
+        "7": {
+          "lower": -43.6209228515625,
+          "upper": 49.90751800537109,
+          "n": 180
+        },
+        "14": {
+          "lower": -18.360049438476562,
+          "upper": 66.62485656738279,
+          "n": 180
+        }
+      }
+    },
+    "Bengaluru": {
+      "n_folds": 4,
+      "horizons": {
+        "1": {
+          "model_mape": 11.22,
+          "model_rmse": 11.11,
+          "persistence_mape": 10.03,
+          "climatology_mape": 34.6,
+          "skill_vs_persistence_pct": -11.9,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "3": {
+          "model_mape": 17.08,
+          "model_rmse": 16.82,
+          "persistence_mape": 15.4,
+          "climatology_mape": 34.55,
+          "skill_vs_persistence_pct": -10.9,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "7": {
+          "model_mape": 18.61,
+          "model_rmse": 18.17,
+          "persistence_mape": 17.52,
+          "climatology_mape": 34.68,
+          "skill_vs_persistence_pct": -6.2,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "14": {
+          "model_mape": 21.37,
+          "model_rmse": 20.27,
+          "persistence_mape": 19.21,
+          "climatology_mape": 34.86,
+          "skill_vs_persistence_pct": -11.3,
+          "beats_persistence": false,
+          "n_points": 360
+        }
+      },
+      "intervals": {
+        "1": {
+          "lower": -12.36090774536133,
+          "upper": 15.639210510253912,
+          "n": 360
+        },
+        "3": {
+          "lower": -14.460954284667974,
+          "upper": 22.564253234863283,
+          "n": 360
+        },
+        "7": {
+          "lower": -15.382447052001954,
+          "upper": 24.60094146728516,
+          "n": 360
+        },
+        "14": {
+          "lower": -13.85500411987305,
+          "upper": 27.054163360595705,
+          "n": 360
+        }
+      }
+    },
+    "Chennai": {
+      "n_folds": 4,
+      "horizons": {
+        "1": {
+          "model_mape": 22.86,
+          "model_rmse": 27.04,
+          "persistence_mape": 17.77,
+          "climatology_mape": 57.37,
+          "skill_vs_persistence_pct": -28.6,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "3": {
+          "model_mape": 41.46,
+          "model_rmse": 42.0,
+          "persistence_mape": 26.55,
+          "climatology_mape": 57.37,
+          "skill_vs_persistence_pct": -56.2,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "7": {
+          "model_mape": 47.62,
+          "model_rmse": 46.48,
+          "persistence_mape": 30.66,
+          "climatology_mape": 57.13,
+          "skill_vs_persistence_pct": -55.3,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "14": {
+          "model_mape": 49.02,
+          "model_rmse": 49.3,
+          "persistence_mape": 32.64,
+          "climatology_mape": 56.76,
+          "skill_vs_persistence_pct": -50.2,
+          "beats_persistence": false,
+          "n_points": 360
+        }
+      },
+      "intervals": {
+        "1": {
+          "lower": -19.01443786621094,
+          "upper": 30.357749176025393,
+          "n": 360
+        },
+        "3": {
+          "lower": -21.868647766113288,
+          "upper": 52.76180419921875,
+          "n": 360
+        },
+        "7": {
+          "lower": -16.328975677490256,
+          "upper": 59.100064849853524,
+          "n": 360
+        },
+        "14": {
+          "lower": -17.740254974365243,
+          "upper": 71.7077674865723,
+          "n": 360
+        }
+      }
+    },
+    "Hyderabad": {
+      "n_folds": 4,
+      "horizons": {
+        "1": {
+          "model_mape": 14.44,
+          "model_rmse": 13.74,
+          "persistence_mape": 12.66,
+          "climatology_mape": 67.78,
+          "skill_vs_persistence_pct": -14.0,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "3": {
+          "model_mape": 32.02,
+          "model_rmse": 28.88,
+          "persistence_mape": 24.41,
+          "climatology_mape": 68.28,
+          "skill_vs_persistence_pct": -31.2,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "7": {
+          "model_mape": 35.32,
+          "model_rmse": 31.13,
+          "persistence_mape": 30.45,
+          "climatology_mape": 67.48,
+          "skill_vs_persistence_pct": -16.0,
+          "beats_persistence": false,
+          "n_points": 360
+        },
+        "14": {
+          "model_mape": 41.28,
+          "model_rmse": 34.0,
+          "persistence_mape": 31.95,
+          "climatology_mape": 66.71,
+          "skill_vs_persistence_pct": -29.2,
+          "beats_persistence": false,
+          "n_points": 360
+        }
+      },
+      "intervals": {
+        "1": {
+          "lower": -10.046459960937504,
+          "upper": 21.183255767822267,
+          "n": 360
+        },
+        "3": {
+          "lower": -17.553708648681653,
+          "upper": 49.46034851074219,
+          "n": 360
+        },
+        "7": {
+          "lower": -20.911129379272463,
+          "upper": 53.9694580078125,
+          "n": 360
+        },
+        "14": {
+          "lower": -21.68350486755371,
+          "upper": 57.565083312988286,
+          "n": 360
+        }
+      }
+    },
+    "Kolkata": {
+      "n_folds": 2,
+      "horizons": {
+        "1": {
+          "model_mape": 17.33,
+          "model_rmse": 26.0,
+          "persistence_mape": 17.47,
+          "climatology_mape": 57.19,
+          "skill_vs_persistence_pct": 0.8,
+          "beats_persistence": true,
+          "n_points": 180
+        },
+        "3": {
+          "model_mape": 39.01,
+          "model_rmse": 52.71,
+          "persistence_mape": 27.49,
+          "climatology_mape": 57.74,
+          "skill_vs_persistence_pct": -41.9,
+          "beats_persistence": false,
+          "n_points": 180
+        },
+        "7": {
+          "model_mape": 36.39,
+          "model_rmse": 48.59,
+          "persistence_mape": 30.67,
+          "climatology_mape": 58.32,
+          "skill_vs_persistence_pct": -18.6,
+          "beats_persistence": false,
+          "n_points": 180
+        },
+        "14": {
+          "model_mape": 36.93,
+          "model_rmse": 47.98,
+          "persistence_mape": 38.27,
+          "climatology_mape": 57.87,
+          "skill_vs_persistence_pct": 3.5,
+          "beats_persistence": true,
+          "n_points": 180
+        }
+      },
+      "intervals": {
+        "1": {
+          "lower": -35.277380371093756,
+          "upper": 24.229743194580074,
+          "n": 180
+        },
+        "3": {
+          "lower": -80.16404266357424,
+          "upper": 54.20164794921874,
+          "n": 180
+        },
+        "7": {
+          "lower": -62.84652862548829,
+          "upper": 51.01205139160156,
+          "n": 180
+        },
+        "14": {
+          "lower": -35.74519348144537,
+          "upper": 64.3551513671875,
+          "n": 180
+        }
+      }
+    }
+  }
+}

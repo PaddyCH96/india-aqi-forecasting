@@ -62,8 +62,11 @@ def add_rolling_features(
     for col in columns:
         if col not in result.columns:
             continue
+        # shift(1) first: a window that includes the current row puts the target
+        # inside its own predictor, which leaks and inflates reported accuracy.
+        past = result.groupby("city")[col].shift(1)
         for w in windows:
-            rolled = result.groupby("city")[col].rolling(w, min_periods=1)
+            rolled = past.groupby(result["city"]).rolling(w, min_periods=1)
             result[f"{col}_roll{w}_mean"] = rolled.mean().reset_index(level=0, drop=True)
             result[f"{col}_roll{w}_std"] = rolled.std().fillna(0).reset_index(level=0, drop=True)
             result[f"{col}_roll{w}_max"] = rolled.max().reset_index(level=0, drop=True)
@@ -119,9 +122,14 @@ def add_city_normalization(
     Adds: {target}_city_zscore, {target}_city_pctile.
     """
     result = df.copy()
-    means = result.groupby("city")[target].transform("mean")
-    stds = result.groupby("city")[target].transform("std").replace(0, 1)
-    result[f"{target}_city_zscore"] = ((result[target] - means) / stds).round(3)
+    # Standardise the PREVIOUS day against statistics of days before it.
+    # Using the current value with full-sample mean/std made this feature an
+    # invertible function of the target -- the model could read the answer off it.
+    prev = result.groupby("city")[target].shift(1)
+    means = prev.groupby(result["city"]).expanding().mean().reset_index(level=0, drop=True)
+    stds = prev.groupby(result["city"]).expanding().std().reset_index(level=0, drop=True)
+    stds = stds.replace(0, np.nan)
+    result[f"{target}_city_zscore"] = ((prev - means) / stds).round(3)
     return result
 
 
