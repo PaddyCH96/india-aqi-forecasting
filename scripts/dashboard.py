@@ -53,6 +53,7 @@ from lib.forecasting_service import (
     get_forecast_for_dashboard,
     forecast_with_baseline,
     load_backtest_results,
+    load_precomputed_forecast,
 )
 
 warnings.filterwarnings("ignore")
@@ -557,14 +558,20 @@ _city_bt = (_bt or {}).get("cities", {}).get(forecast_city, {})
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def _cached_forecast(city, days, synthetic):
-    """Fitting one model per horizon is not free -- cache per (city, days)."""
+    """Precomputed where available; fit on demand only if it is not.
+
+    Fitting one model per horizon takes tens of seconds on a small hosted
+    instance, so the bundled demo ships precomputed forecasts and this falls
+    back to fitting only when running against data they do not cover.
+    """
+    if not synthetic:
+        ready = load_precomputed_forecast(city, days)
+        if ready is not None:
+            return ready
     return forecast_with_baseline(city, days=days, use_synthetic=synthetic)
 
 
-with st.spinner(
-    f"Fitting {horizon_days} per-horizon models for {forecast_city} "
-    "(cached afterwards)..."
-):
+with st.spinner(f"Preparing {horizon_days}-day forecast for {forecast_city}..."):
     result = _cached_forecast(forecast_city, horizon_days, use_synthetic)
 
 if result is None:

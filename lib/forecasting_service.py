@@ -315,3 +315,43 @@ def load_backtest_results() -> dict | None:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not read backtest results: %s", exc)
         return None
+
+
+def load_precomputed_forecast(city: str, days: int) -> dict | None:
+    """Read a precomputed forecast for the bundled demo database.
+
+    Fitting one model per horizon takes tens of seconds on a small hosted
+    instance, long enough that the forecasting section never finishes rendering.
+    The demo dataset never changes, so the result is deterministic and is
+    generated ahead of time by scripts/precompute_forecasts.py.
+    """
+    import json
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "forecasts.json",
+    )
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as fh:
+            payload = json.load(fh)
+        entry = payload.get("cities", {}).get(city)
+        if not entry:
+            return None
+        frame = pd.DataFrame(entry["rows"])
+        if frame.empty:
+            return None
+        frame["date"] = pd.to_datetime(frame["date"])
+        frame = frame[frame["horizon"] <= days].reset_index(drop=True)
+        if frame.empty:
+            return None
+        return {
+            "city": city,
+            "forecast": frame,
+            "last_observed": entry["last_observed"],
+            "last_date": pd.to_datetime(entry["last_date"]),
+            "precomputed": True,
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not read precomputed forecast: %s", exc)
+        return None
