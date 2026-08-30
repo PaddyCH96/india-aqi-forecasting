@@ -40,7 +40,7 @@
 
 | Target | Status | Notes |
 |--------|--------|-------|
-| Local Python | ✅ | `pip install -r requirements.txt` + `streamlit run scripts/dashboard_final.py` |
+| Local Python | ✅ | `pip install -r requirements.txt` + `streamlit run scripts/dashboard.py` |
 | Docker Compose | ✅ | `docker compose up --build` launches Stack |
 | Docker Compose + API | ✅ | `docker compose --profile api up --build` adds REST API on port 8000 |
 | FastAPI Docs | ✅ | Auto-generated Swagger at /docs |
@@ -61,7 +61,7 @@
 | `.env.example` has no secrets | ✅ Template only |
 | Build artifacts cleaned | ✅ `__pycache__`, `.pyc`, `.DS_Store`, `.coverage`, `.pytest_cache` | removed |
 | Large tracked data files | ✅ `data/processed/aqi_2020_2024_synthetic.csv` (490KB) removed from tracking |
-| Deprecated files removed | ✅ `dashboard.py`, `dashboard_fixed.py`, `Untitled*.ipynb` |
+| Deprecated files removed | ✅ `dashboard_fixed.py`, `Untitled*.ipynb` (superseded variants `dashboard_complete.py` / `dashboard_final.py` removed later; `dashboard.py` is the live dashboard) |
 | Dead code removed | ✅ No `print()`, `pdb.set_trace()`, or `breakpoint()` in lib/ |
 
 ## Known Issues

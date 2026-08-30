@@ -77,7 +77,7 @@ python scripts/seed_data.py
 ### Run Dashboard
 
 ```bash
-streamlit run scripts/dashboard_final.py
+streamlit run scripts/dashboard.py
 # Opens at http://localhost:8501
 ```
 

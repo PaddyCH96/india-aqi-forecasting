@@ -3,8 +3,7 @@
 ## Current State
 
 Two Streamlit dashboards exist:
-- `dashboard_final.py` — 3 tabs (History, Forecast, Validation)
-- `dashboard_complete.py` — 4 tabs (History, Forecast, Validation, Multi-City Comparison)
+- `dashboard.py` — the live 6-page dashboard (history, forecast, validation, multi-city, provenance)
 
 Both use only AQI from 6 cities. Both depend on synthetic 2020-2024 data for forecasts.
 

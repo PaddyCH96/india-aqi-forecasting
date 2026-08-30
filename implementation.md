@@ -22,8 +22,7 @@ india-air-quality/
 │   ├── logging.py              # Structured logging
 │   └── utils.py                # Retry decorator + config validation
 ├── scripts/                    # 6 production scripts
-│   ├── dashboard_final.py      # [REFACTORED] 3-tab Streamlit (History, Forecast, Validation)
-│   ├── dashboard_complete.py   # [REFACTORED] 4-tab (adds Multi-City Comparison)
+│   ├── dashboard.py           # 6-page Streamlit dashboard (history, forecast, validation, provenance)
 │   ├── api.py                  # [NEW] FastAPI REST endpoints
 │   ├── fetch_openaq.py         # [REFACTORED] OpenAQ API + retry
 │   ├── fetch_recent_aqi.py     # [REFACTORED] Open-Meteo API + retry
@@ -102,7 +101,7 @@ Seed data script → synthetic generation → PostgreSQL (city_day)
 ### Consolidation (Phase 3 ✅)
 - `lib/charts.py` extracted — 6 reusable chart functions (history, forecast, validation, scatter, comparison, monthly)
 - Both dashboards refactored to use `lib/charts.py` — thin layout shells
-- 2 deprecated dashboards removed: `dashboard.py`, `dashboard_fixed.py`
+- Deprecated dashboards removed: `dashboard_fixed.py`, and later the superseded `dashboard_complete.py` / `dashboard_final.py` variants. `dashboard.py` is the single live dashboard.
 - 2 untitled notebooks removed: `Untitled.ipynb`, `Untitled1.ipynb`
 - `__pycache__/`, `.ipynb_checkpoints/` in `.gitignore`
 
@@ -141,7 +140,7 @@ tests/test_db.py ................. 21 passed
 | Retry on fetch scripts | 2 files |
 | Model config generation | `validate_prophet.py` |
 | Notebook cleanup | `create_notebook.py`, removed untitled |
-| Deprecated removal | `dashboard.py`, `dashboard_fixed.py` |
+| Deprecated removal | `dashboard_fixed.py`, `dashboard_complete.py`, `dashboard_final.py` |
 | `.gitignore` updates | `__pycache__/`, `.ipynb_checkpoints/` |
 | `requirements.txt` | Added fastapi, uvicorn, pydantic, pytest-cov |
 

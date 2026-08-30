@@ -28,7 +28,7 @@
 
 ### Key Decisions
 
-1. **Keep both dashboards:** `dashboard_final.py` (minimal, 3-tab) and `dashboard_complete.py` (feature-rich, 4-tab) serve different user segments. Both share `lib/charts.py`.
+1. **Single dashboard:** `dashboard.py` is the one live dashboard (6 pages). The earlier `dashboard_final.py` / `dashboard_complete.py` variants were superseded and removed; it uses `lib/charts.py`.
 2. **FastAPI over Flask:** Lighter weight, async support, auto-generated docs at `/docs`.
 3. **Docker Compose over Kubernetes:** Appropriate for project scale. Single-node deployment is sufficient.
 4. **Synthetic fallback:** Acceptable for demo/deployment but documented as limitation. Users should prefer real OpenAQ data when available.
@@ -61,7 +61,7 @@ india-air-quality/
 
 ```bash
 # Run dashboard
-streamlit run scripts/dashboard_final.py
+streamlit run scripts/dashboard.py
 
 # Run API
 uvicorn scripts.api:app --reload --port 8000
