@@ -1,0 +1,34 @@
+# Render Blueprint — one-click deploy of the AQI dashboard + Postgres.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> connect this repo -> Apply.
+# Render provisions the database, injects AQI_DB_URL, then the service creates
+# the schema and seeds it. Seeding is idempotent: it skips if data is present.
+
+databases:
+  - name: aqi-db
+    databaseName: india_air_quality
+    user: aqi
+    plan: free
+
+services:
+  - type: web
+    name: india-aqi-dashboard
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: AQI_DB_URL
+        fromDatabase:
+          name: aqi-db
+          property: connectionString
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    dockerCommand: >-
+      sh -c "python scripts/init_db.py &&
+      python scripts/seed_data.py &&
+      streamlit run scripts/dashboard.py
+      --server.port=$PORT
+      --server.address=0.0.0.0
+      --server.headless=true"
