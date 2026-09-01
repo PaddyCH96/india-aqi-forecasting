@@ -184,7 +184,7 @@ Three data sources converge into a unified pipeline:
 - **Per-city models, not global** — Delhi's dynamics differ fundamentally from Bengaluru's. A single model across all cities would underfit.
 - **NaN strategy is per-city** — features with >80% missing in Mumbai (like NH3, NOx) are auto-dropped for that city but retained for Delhi where they're well-measured.
 - **Time-based split, not random** — avoids data leakage from future into past.
-- **naive baselines included** — Moving Average and Seasonal Naive let us quantify the ML value-add (ML is 10–20× better).
+- **naive baselines included** — Moving Average, Seasonal Naive and persistence exist so the ML value-add can be measured rather than assumed. Measured, that value-add is inconsistent and horizon-dependent, not a blanket multiplier: persistence is a strong baseline and the model beats it reliably only for Delhi at one- to three-day horizons. See the model-vs-persistence table in `README.md` for the per-city, per-horizon numbers.
 - **Models serialized to disk** — no GPU, no cloud dependency. Single-machine inference.
 
 ---

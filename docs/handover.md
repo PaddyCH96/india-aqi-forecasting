@@ -1,15 +1,25 @@
 # Handover Document
 
+> **Superseded snapshot — historical record.** This handover describes an earlier,
+> Prophet-centric snapshot of the system and predates the current forecasting
+> pipeline. The current primary forecaster is a per-city, per-horizon XGBoost model
+> scored by rolling backtest against a persistence baseline; that backtest shows
+> persistence is a strong baseline, and the model beats it reliably only for Delhi
+> at one- to three-day horizons. Do not read any accuracy figure below as current.
+> See `README.md` for current measured results and `docs/architecture.md` for the
+> current system design. The body is preserved unchanged as a record of how the
+> project evolved from Prophet to XGBoost.
+
 ## Project Status
 
-**India Air Quality Forecasting** is a production-ready data science project that forecasts AQI for 6 Indian cities through 2030 using Meta's Prophet model.
+**India Air Quality Forecasting** is a production-ready data science project that forecasts AQI for 6 Indian cities through 2030 using Meta's Prophet model. *(Prophet-era statement — superseded; the current forecaster is per-city per-horizon XGBoost.)*
 
 ### What Works
 
 - **Data ingestion:** Two fetch scripts pulling from OpenAQ and Open-Meteo APIs with synthetic data fallback.
 - **Database:** PostgreSQL schema (`city_day` table) with parameterized queries (no SQL injection).
 - **Forecasting:** Prophet with yearly seasonality, 6-year horizon, 95% confidence intervals.
-- **Accuracy:** 13–16% MAPE on 6 cities (best: Mumbai 13.05%, Hyderabad 15.6%).
+- **Accuracy:** 13–16% MAPE on 6 cities (best: Mumbai 13.05%, Hyderabad 15.6%). *(Prophet-era figure — not the current headline accuracy; see `README.md` for the current backtested model-vs-persistence numbers.)*
 - **Dashboards:** Two Streamlit apps — 3-tab minimal and 4-tab feature-rich with multi-city comparison.
 - **REST API:** FastAPI with endpoints for cities, forecast, and validation.
 - **Containerization:** Docker Compose with PostgreSQL, seed, dashboard, and optional API services.
@@ -32,7 +42,7 @@
 2. **FastAPI over Flask:** Lighter weight, async support, auto-generated docs at `/docs`.
 3. **Docker Compose over Kubernetes:** Appropriate for project scale. Single-node deployment is sufficient.
 4. **Synthetic fallback:** Acceptable for demo/deployment but documented as limitation. Users should prefer real OpenAQ data when available.
-5. **Prophet over ARIMA/XGBoost:** Proven accuracy for this dataset. Prophet handles seasonality and missing data well.
+5. **Prophet over ARIMA/XGBoost:** *(Prophet-era decision, since reversed — the system now uses per-horizon XGBoost, and this rationale no longer holds.)* The position at the time was that Prophet had proven accuracy for this dataset and handled seasonality and missing data well.
 
 ### Project Structure
 
