@@ -1,5 +1,12 @@
 # Feature Inventory
 
+> **Pre-training plan — targets below were not met.** The "Expected Performance"
+> figures in this document are goals set before the models were trained, not
+> results. Measured error is 15–49% MAPE depending on city and horizon, and a
+> persistence baseline matches or beats the model on most city/horizon pairs.
+> Current results: [`data/backtest_results.json`](../data/backtest_results.json)
+> and the Key Results table in [`README.md`](../README.md).
+
 ## 1. Available Features by Category
 
 ### 1.1 Pollutant Features (Direct Measurements)
