@@ -1,5 +1,8 @@
 # Project Roadmap: india-air-quality
 
+> **Historical record — this is the original Phase 0 project plan, kept as written.** It is a
+> plan, not a record of achieved results; see `README.md` for what was actually built and measured.
+
 ## Current Status vs Target
 
 | Dimension | Current | Target |

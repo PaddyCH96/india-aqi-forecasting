@@ -1,5 +1,9 @@
 # India Air Quality Forecasting — Implementation Plan (Final)
 
+> **Historical record — Phase 4 (Prophet + FastAPI) implementation state.** This document
+> predates the XGBoost forecasting pipeline; its performance figures (e.g. 15.6% MAPE) are
+> Prophet-era and are not current claims. See `README.md` for current model results.
+
 ## Project Overview
 
 **India Air Quality Forecasting** is a data science project that analyzes historical AQI data across Indian cities and forecasts future AQI trajectories using Facebook Prophet. It produces interactive Streamlit dashboards, a FastAPI REST API, batch analysis pipelines, and visualization outputs — all packaged for single-command Docker deployment.
