@@ -93,26 +93,62 @@ engineered features → time-based split → NaN handling → model training →
 
 ### Results
 
-| City | Training Days | XGBoost RMSE | MAPE | Best Model |
-|------|:------------:|:-----------:|:----:|:----------:|
-| Bengaluru | 1,362 | 0.9 | **0.8%** | Random Forest |
-| Hyderabad | 1,332 | 0.9 | **0.9%** | Random Forest |
-| Chennai | 1,336 | 1.6 | **0.9%** | Random Forest |
-| Delhi | 1,451 | 2.7 | **1.0%** | Random Forest |
-| Mumbai | 227 | 6.7 | **2.9%** | XGBoost |
-| Kolkata | 206 | 6.9 | **3.2%** | XGBoost |
+Forecast error (MAPE, lower is better) from a rolling backtest on held-out
+periods — never on data the models trained on. **Persistence** is the naive rule
+of assuming tomorrow looks like today. Source of truth:
+[`data/backtest_results.json`](data/backtest_results.json).
+
+| City | 1 day | 3 days | 7 days | 14 days |
+|---|:--:|:--:|:--:|:--:|
+| | model / persistence | model / persistence | model / persistence | model / persistence |
+| Bengaluru | 11 / 10 | 17 / 15 | 19 / 18 | 21 / 19 |
+| Mumbai | 13 / 13 | 36 / 25 | 33 / 27 | 46 / 31 |
+| Hyderabad | 14 / 13 | 32 / 24 | 35 / 30 | 41 / 32 |
+| Delhi | **15 / 16** | 31 / 31 | 37 / 36 | 47 / 40 |
+| Kolkata | 17 / 17 | 39 / 27 | 36 / 31 | **37 / 38** |
+| Chennai | 23 / 18 | 41 / 27 | 48 / 31 | 49 / 33 |
 
 ### What the numbers mean
 
-**Data quality determines accuracy, not model choice.** Cities with >1,300 training samples consistently achieve sub-1% MAPE regardless of whether we use XGBoost or Random Forest. Mumbai and Kolkata — the cities with the worst monitoring — have 3–4× higher error even with the same algorithm. The single highest-ROI improvement for this system is better data collection, not a better model.
+**Persistence is a strong baseline for daily city-level AQI, and this model does
+not beat it.** Across six cities and four horizons, gradient boosting beat
+persistence reliably only for Delhi at one to three days. Everywhere else the
+naive rule matched it or won, and the margin widens against the model as the
+horizon lengthens. That is the finding, and it is stated here without hedging
+because it is the honest one.
 
-Baselines confirm the ML adds value: Moving Average achieves 12–25% MAPE, Seasonal Naive 31–64%. The feature engineering pipeline (66 features) is what separates XGBoost from naive approaches.
+Three attempts to overturn it — removing target leakage, training one model per
+horizon, and predicting the day-over-day change rather than the level — all
+failed to change the conclusion. Beyond about a week, historical AQI alone
+carries little forecastable signal; that would need meteorological inputs the
+current dataset does not contain.
+
+### Why an earlier version of this document claimed sub-1% error
+
+An earlier iteration of this case study reported single-digit-percent MAPE and a
+large advantage over naive baselines. Those numbers were a target leakage
+artifact. Two engineered features put the answer into the inputs:
+
+- `aqi_city_zscore` was *(today's AQI − city mean) ÷ city std* — an invertible
+  function of the exact value being predicted, correlating **1.000** with it.
+- Rolling means such as `aqi_roll3_mean` used windows that **included the current
+  day**, so each row's own target was averaged into its own features.
+
+The evaluation compounded this: the forecast held every feature at its last
+observed value, returning the same number for every future day. Both defects are
+fixed, and `tests/test_backtesting.py::TestNoTargetLeakage` fails the build if
+either regresses.
+
+The measurement that caught this — a rolling-origin backtest against a
+persistence baseline — is the part of this project worth reading. Finding target
+leakage in your own prior work, correcting it, and publishing the weaker result
+is a more useful engineering signal than a headline accuracy number.
 
 ---
 
 ## Key Results
 
-1. **XGBoost achieves 0.8–3.2% MAPE** across 6 cities — 10–20× better than naive baselines
+1. **Persistence is hard to beat for daily AQI** — gradient boosting beat it reliably only for Delhi at one to three days; a rolling backtest against `data/backtest_results.json` is the evidence, and `tests/test_backtesting.py::TestNoTargetLeakage` guards it
 2. **Delhi's mean AQI (259.5) is 2.7× higher** than the next worst major city — it's in a different pollution regime entirely
 3. **Mumbai has a monitoring crisis** — 61.4% of daily AQI records are missing, making it the hardest city to model
 4. **PM2.5 alone predicts AQI with r=0.97** — the other 11 pollutants add marginal value for forecasting
