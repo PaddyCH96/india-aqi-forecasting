@@ -11,7 +11,7 @@
 > Trained per-city XGBoost regression models with 66 engineered features (lags, rolling windows, seasonal cycles, pollutant interactions) and built a rolling-origin backtest scoring them against a persistence baseline across four horizons. Found persistence is a strong baseline for daily city AQI and the model beats it reliably only for Delhi at 1–3 days; traced an earlier sub-3% MAPE result to target leakage, fixed it, and published the negative result with a regression test guarding against recurrence.
 
 **Bullet 3 — Full-Stack Delivery**
-> Delivered a production-ready system including an interactive 6-page Streamlit dashboard, FastAPI REST API, Docker deployment (4 services), CI/CD pipeline (144 tests, 95% coverage, Ruff-clean), and comprehensive portfolio documentation.
+> Delivered a production-ready system including an interactive 6-page Streamlit dashboard, FastAPI REST API, Docker deployment (4 services), CI/CD pipeline (159 tests, 95% coverage, Ruff-clean), and comprehensive portfolio documentation.
 
 ---
 
@@ -47,13 +47,13 @@ Full case study, code, and insights: https://github.com/PaddyCH96/india-aqi-fore
 
 ## Short Project Summary (80 words)
 
-Built an end-to-end air quality forecasting system for 26 Indian cities. Ingested 700K+ hourly records from CPCB, built a 66-feature engineering pipeline, and trained per-city XGBoost models scored by rolling-origin backtest against a persistence baseline. Persistence proved strong: the model beats it reliably only for Delhi at 1–3 days. An earlier sub-3% MAPE result came from target leakage — found, fixed, and now guarded by a regression test. Delivered via 6-page Streamlit dashboard, FastAPI, Docker, and CI/CD with 144 tests.
+Built an end-to-end air quality forecasting system for 26 Indian cities. Ingested 700K+ hourly records from CPCB, built a 66-feature engineering pipeline, and trained per-city XGBoost models scored by rolling-origin backtest against a persistence baseline. Persistence proved strong: the model beats it reliably only for Delhi at 1–3 days. An earlier sub-3% MAPE result came from target leakage — found, fixed, and now guarded by a regression test. Delivered via 6-page Streamlit dashboard, FastAPI, Docker, and CI/CD with 159 tests.
 
 ---
 
 ## GitHub Description (Short)
 
-> **India Air Quality Forecasting** — End-to-end data + ML system for 26 cities. Per-city XGBoost backtested against a persistence baseline, with the negative result published. Streamlit dashboard, FastAPI, Docker, CI/CD. 144 tests, 95% coverage.
+> **India Air Quality Forecasting** — End-to-end data + ML system for 26 cities. Per-city XGBoost backtested against a persistence baseline, with the negative result published. Streamlit dashboard, FastAPI, Docker, CI/CD. 159 tests, 95% coverage.
 
 ## GitHub About Section
 

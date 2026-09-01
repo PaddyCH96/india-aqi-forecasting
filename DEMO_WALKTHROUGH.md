@@ -59,7 +59,7 @@ open http://localhost:8501
 
 ## Summary for Interviewer
 
-> "I built this as a complete data project: ingestion from government CSVs and APIs, data quality auditing with provenance tracking, 15-function EDA library, 5-model ML pipeline with feature engineering, an interactive dashboard, and a REST API — all Dockerized and tested (144 tests, 95% coverage). The code, case study, and insights are all on GitHub."
+> "I built this as a complete data project: ingestion from government CSVs and APIs, data quality auditing with provenance tracking, 15-function EDA library, 5-model ML pipeline with feature engineering, an interactive dashboard, and a REST API — all Dockerized and tested (159 tests, 95% coverage). The code, case study, and insights are all on GitHub."
 
 ---
 

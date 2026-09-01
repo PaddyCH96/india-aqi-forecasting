@@ -173,7 +173,7 @@ CPCB CSVs   ─┘                                    ├──► REST API (Fas
 
 **Tech stack:** Python (+ Prophet, XGBoost, scikit-learn) · PostgreSQL · Streamlit · FastAPI · Docker · GitHub Actions · pytest
 
-**144 tests** across 9 files, all passing. Ruff-clean. 95% code coverage.
+**159 tests** across 10 files, all passing. Ruff-clean. 95% code coverage.
 
 ---
 
