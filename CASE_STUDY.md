@@ -181,7 +181,10 @@ CPCB CSVs   ─┘                                    ├──► REST API (Fas
 
 - **No real data beyond 2020** — CPCB dataset ends July 2020. Synthetic data extends to 2024 for demo purposes but is AQI-only (no multi-pollutant).
 - **Mumbai and Kolkata** have <250 usable training samples — models for these cities have wider confidence intervals.
-- **Future prediction** uses last-known features rather than true multi-step forecasting — adequate for the dashboard but not production-grade.
+- **Future prediction** now fits one model per horizon rather than holding features at
+  their last observed value, which is what made an earlier version return an identical
+  number for every forecast day. Exogenous pollutants are still carried forward, so
+  error grows with horizon by construction.
 - **No weather regressors** — temperature, wind, and humidity would improve accuracy but aren't in the current data.
 - **No hyperparameter tuning** — default XGBoost parameters were used for consistency.
 
