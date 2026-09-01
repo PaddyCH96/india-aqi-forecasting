@@ -43,7 +43,7 @@ open http://localhost:8501
 
 ## Flow (1:15–1:40) — ML Forecast
 
-> "This is the forecasting page. I trained XGBoost models per city with 66 engineered features — lags, rolling windows, seasonal cycles, pollutant interactions. For Bengaluru, the model achieves **0.8% MAPE** — meaning it predicts AQI within 1% of actual values. Even Mumbai, which has 61% missing data, gets to 2.9% MAPE. **Data quality is the constraint, not model choice.**"
+> "This is the forecasting page. I trained XGBoost models per city with 66 engineered features — lags, rolling windows, seasonal cycles, pollutant interactions. But the number that matters is how it scores in a rolling-origin backtest against a persistence baseline — just carrying today's AQI forward. Persistence turns out to be strong for daily city AQI, and the model only beats it reliably for Delhi at one to three days out. An earlier version of this project reported far lower error, but two features were leaking the target. **I found it, fixed it, and there is now a test that fails if the leak comes back.**"
 
 **Action:** Click Page 6 (Forecasting). Select Bengaluru. Set horizon to 72h. Click "Train Model" (or show pre-trained). Point out the confidence bands and the comparison against historical data.
 
