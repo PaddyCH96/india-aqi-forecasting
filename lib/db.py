@@ -140,7 +140,7 @@ def count_recent_rows(
 def insert_city_data(
     engine,
     df: pd.DataFrame,
-    data_source: str = "OpenAQ",
+    data_source: str = "unknown",
     is_synthetic: bool = False,
 ):
     df_to_insert = df.rename(columns={"pm25": "pm2_5"})

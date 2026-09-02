@@ -382,6 +382,34 @@ class TestInsertCityData:
             assert "pm25" not in inserted_df.columns
 
 
+    def test_default_data_source_does_not_name_the_retired_openaq_source(self):
+        """scripts/fetch_openaq.py is deleted this phase (its endpoint returns HTTP
+        410 Gone) and never wrote a row under this default. A default that names it
+        would be a lie the schema tells about its own provenance."""
+        import inspect
+
+        default = inspect.signature(insert_city_data).parameters["data_source"].default
+        assert default != "OpenAQ"
+        assert default == "unknown"
+
+    def test_default_data_source_is_written_through_to_the_frame(self):
+        mock_engine = MagicMock()
+        df = pd.DataFrame({
+            "date": ["2023-01-01"],
+            "city": ["TestCity"],
+            "pm25": [50.0],
+        })
+
+        captured = []
+        def capture_self(self, *args, **kwargs):
+            captured.append(self)
+
+        with patch("lib.db.pd.DataFrame.to_sql", autospec=True, side_effect=capture_self):
+            insert_city_data(mock_engine, df)
+
+            assert captured[0]["data_source"].iloc[0] == "unknown"
+
+
 class TestGetDataFreshness:
     def test_returns_summary_dict(self):
         mock_engine = MagicMock()
