@@ -48,6 +48,32 @@ def load_city_pollutants(
     return df
 
 
+def load_city_weather(engine, city: str) -> pd.DataFrame:
+    """Load daily ERA5 weather for one city, keyed on (city, date).
+
+    Deliberately mirrors ``load_city_pollutants``' shape so callers can merge the
+    two frames in pandas on ``["city", "date"]``. The join belongs in pandas, not
+    in SQL: ``city_measurements.date`` is stored as TEXT in SQLite
+    ('2015-01-01 00:00:00.000000') but as a real DATE in PostgreSQL, and the
+    ``date()`` normalisation needed to reconcile them is not portable between the
+    two dialects. Returning real Timestamps from both helpers sidesteps that
+    entirely -- an equality join on ISO date strings silently returns zero rows
+    in SQLite and every row in PostgreSQL.
+    """
+    query = sa_text("""
+        SELECT city, date, temp_mean_c, temp_max_c, temp_min_c,
+               precipitation_mm, wind_speed_mean_kmh, wind_speed_max_kmh,
+               wind_direction_deg, relative_humidity_pct, surface_pressure_hpa,
+               blh_mean_m, blh_max_m, blh_min_m, data_source
+        FROM city_weather
+        WHERE city = :city AND data_source = 'open_meteo_era5'
+        ORDER BY date
+    """)
+    df = pd.read_sql(query, engine, params={"city": city})
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
 def get_cities_with_recent_data(
     engine,
     use_synthetic: bool = False,

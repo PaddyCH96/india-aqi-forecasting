@@ -8,6 +8,7 @@ from lib.db import (
     get_engine,
     load_city_data,
     load_city_pollutants,
+    load_city_weather,
     get_cities_with_recent_data,
     get_cities_with_data_summary,
     get_eligible_cities,
@@ -124,6 +125,64 @@ class TestLoadCityPollutants:
             load_city_pollutants(mock_engine, "Delhi")
             sql_text = str(mock_read_sql.call_args[0][0])
             assert "AND NOT is_synthetic" in sql_text
+
+
+def _weather_df():
+    return pd.DataFrame({
+        "city": ["Delhi", "Delhi"],
+        "date": ["2015-01-01", "2015-01-02"],
+        "temp_mean_c": [14.2, 15.1],
+        "blh_max_m": [1200.0, 980.0],
+        "data_source": ["open_meteo_era5", "open_meteo_era5"],
+    })
+
+
+class TestLoadCityWeather:
+    def test_passes_city_as_bound_parameter(self):
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql", return_value=_weather_df()) as mock_read:
+            load_city_weather(mock_engine, "Delhi")
+
+        kwargs = mock_read.call_args[1]
+        assert kwargs["params"] == {"city": "Delhi"}
+
+    def test_does_not_interpolate_city_into_sql(self):
+        """A city name reaching the query text verbatim would be an injection point."""
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql", return_value=_weather_df()) as mock_read:
+            load_city_weather(mock_engine, "Delhi'; DROP TABLE city_weather; --")
+
+        sql = str(mock_read.call_args[0][0])
+        assert "DROP TABLE" not in sql
+        assert ":city" in sql
+
+    def test_returns_datetime_date_column(self):
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql", return_value=_weather_df()):
+            result = load_city_weather(mock_engine, "Delhi")
+
+        assert pd.api.types.is_datetime64_any_dtype(result["date"])
+
+    def test_queries_city_weather_filtered_on_data_source(self):
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql", return_value=_weather_df()) as mock_read:
+            load_city_weather(mock_engine, "Delhi")
+
+        sql = str(mock_read.call_args[0][0])
+        assert "FROM city_weather" in sql
+        assert "data_source = 'open_meteo_era5'" in sql
+        assert "SELECT *" not in sql
+        assert "ORDER BY date" in sql
+
+    def test_selects_the_boundary_layer_height_measures(self):
+        """Phase 3 chooses among all three BLH aggregates, so all three must be read."""
+        mock_engine = MagicMock()
+        with patch("lib.db.pd.read_sql", return_value=_weather_df()) as mock_read:
+            load_city_weather(mock_engine, "Delhi")
+
+        sql = str(mock_read.call_args[0][0])
+        for col in ("blh_mean_m", "blh_max_m", "blh_min_m"):
+            assert col in sql
 
 
 class TestGetCitiesWithRecentData:
