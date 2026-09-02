@@ -97,3 +97,22 @@ class TestValidateDbUrl:
 
     def test_uses_default_url(self):
         assert validate_db_url() is True
+
+
+class TestCityCoords:
+    def test_city_coords_cover_all_cities(self):
+        """Coordinates promoted verbatim from scripts/fetch_recent_aqi.py:26-33 -
+        a typo during promotion must be caught here."""
+        from lib.config import CITIES, CITY_COORDS
+
+        assert set(CITY_COORDS) == set(CITIES)
+
+        for city, coords in CITY_COORDS.items():
+            assert isinstance(coords, dict), city
+            assert set(coords) >= {"lat", "lon"}, city
+            # India's bounding box.
+            assert 8.0 <= coords["lat"] <= 37.0, city
+            assert 68.0 <= coords["lon"] <= 97.5, city
+
+        assert CITY_COORDS["Delhi"]["lat"] == 28.6139
+        assert CITY_COORDS["Delhi"]["lon"] == 77.209
