@@ -33,7 +33,7 @@
 |------|---------|--------|
 | Fork/copy real CPCB data into clean DB | Load all 26 cities, all pollutants, city_day + city_hour | 0.5 day |
 | Mark synthetic data boundary | Add `is_synthetic` column to city_day | 0.5 day |
-| Add OpenAQ ingestion for 2020-2024 real data | Extend `fetch_openaq.py` to cover all 26 cities | 1 day |
+| Add OpenAQ ingestion for 2020-2024 real data | Build a new OpenAQ fetcher covering all 26 cities | 1 day |
 | Remove synthetic fallback from seed pipeline | seed_data.py should flag synthetic, not merge silently | 0.5 day |
 | Add data freshness reporting | API endpoint `/data/freshness` + dashboard badge | 0.5 day |
 

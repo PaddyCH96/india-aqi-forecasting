@@ -383,7 +383,7 @@ class TestInsertCityData:
 
 
     def test_default_data_source_does_not_name_the_retired_openaq_source(self):
-        """scripts/fetch_openaq.py is deleted this phase (its endpoint returns HTTP
+        """The OpenAQ fetch script is deleted this phase (its endpoint returns HTTP
         410 Gone) and never wrote a row under this default. A default that names it
         would be a lie the schema tells about its own provenance."""
         import inspect

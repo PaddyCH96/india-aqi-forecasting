@@ -21,7 +21,6 @@ Three data sources converge into a unified pipeline:
 │  │  (offline)   │  │  (real-time) │  │  (fallback)          │  │
 │  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘  │
 │         │                 │                      │              │
-│         │         scripts/fetch_openaq.py        │              │
 │         │         scripts/fetch_recent_aqi.py    │              │
 │         └─────────────────┼──────────────────────┘              │
 │                           ▼                                     │
