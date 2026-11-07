@@ -75,6 +75,10 @@ def fetch_era5_archive(latitude, longitude, start_date, end_date):
     response.raise_for_status()
     payload = response.json()
 
+    # Must stay in sync with lib.config.CITY_COORDS[*].timezone /
+    # utc_offset_seconds (currently Asia/Kolkata / 19800 for all six cities).
+    # TODO(phase 03+): take expected timezone/utc_offset_seconds as a parameter
+    # so the provider is not pinned to a single zone; see PR discussion.
     offset = payload.get("utc_offset_seconds")
     if offset != IST_OFFSET_SECONDS:
         raise ValueError(

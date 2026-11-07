@@ -6,7 +6,7 @@ apart those two things are, and where the substitution is weakest.
 ## The Mapping
 
 The coordinate table lives in `lib.config.CITY_COORDS` — one dict, six cities,
-each with a `lat` and a `lon`. The values were promoted verbatim from the table
+each with a `lat`, a `lon`, and (since the ERA5 weather ingest) the expected `timezone` and `utc_offset_seconds` for that city — currently `Asia/Kolkata` / `19800` for all six. The values were promoted verbatim from the table
 `scripts/fetch_recent_aqi.py` had been using since the Open-Meteo air-quality
 pull, so ERA5 weather and any future CAMS air-quality pull describe the same
 point rather than drifting apart. There is exactly one coordinate table in this

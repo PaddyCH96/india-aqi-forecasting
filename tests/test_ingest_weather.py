@@ -236,3 +236,63 @@ class TestCacheRevalidation:
         ):
             with pytest.raises(ValueError, match="Refusing to ingest"):
                 mod.load_or_fetch_payload("Delhi")
+
+    @pytest.mark.parametrize("city", ["Mumbai", "Kolkata", "Chennai"])
+    def test_cached_payload_revalidates_timezone_non_delhi(self, tmp_path, monkeypatch, city):
+        """Same stale-cache guard as Delhi, but for other CITY_COORDS cities.
+
+        Guards the fix that derives the expected timezone/offset from
+        CITY_COORDS[city] instead of hardcoding Delhi's values.
+        """
+        mod = _load_module()
+
+        cache_dir = tmp_path / "weather"
+        cache_dir.mkdir()
+        payload = _payload()
+        payload["utc_offset_seconds"] = 0
+        payload["timezone"] = "GMT"
+        (cache_dir / f"{city}.json").write_text(json.dumps(payload))
+
+        monkeypatch.setattr(mod, "CACHE_DIR", str(cache_dir))
+
+        with patch(
+            "lib.providers.open_meteo.requests.get",
+            side_effect=AssertionError("network hit: the cache was not used"),
+        ):
+            with pytest.raises(ValueError, match="Refusing to ingest"):
+                mod.load_or_fetch_payload(city)
+
+    def test_expected_timezone_derives_per_city(self, tmp_path, monkeypatch):
+        """Pin per-city lookup: patch Mumbai to a non-IST zone and prove the
+        guard follows CITY_COORDS[city], not a shared IST constant."""
+        from lib.config import CITY_COORDS
+
+        mod = _load_module()
+
+        monkeypatch.setitem(
+            CITY_COORDS,
+            "Mumbai",
+            {"lat": 19.076, "lon": 72.8777,
+             "timezone": "Asia/Dubai", "utc_offset_seconds": 14400},
+        )
+
+        cache_dir = tmp_path / "weather"
+        cache_dir.mkdir()
+        monkeypatch.setattr(mod, "CACHE_DIR", str(cache_dir))
+
+        matching = _payload()
+        matching["timezone"] = "Asia/Dubai"
+        matching["utc_offset_seconds"] = 14400
+        (cache_dir / "Mumbai.json").write_text(json.dumps(matching))
+
+        with patch(
+            "lib.providers.open_meteo.requests.get",
+            side_effect=AssertionError("network hit: the cache was not used"),
+        ):
+            payload = mod.load_or_fetch_payload("Mumbai")
+        assert payload["timezone"] == "Asia/Dubai"
+
+        stale = _payload()  # fixture carries IST values
+        (cache_dir / "Mumbai.json").write_text(json.dumps(stale))
+        with pytest.raises(ValueError, match="Refusing to ingest"):
+            mod.load_or_fetch_payload("Mumbai")
