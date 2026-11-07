@@ -1,5 +1,13 @@
 # ML Strategy: india-air-quality
 
+> **Superseded pre-training plan — target not met.** This document records what
+> was *planned* before the models were trained; its MAPE figures are
+> forward-looking targets, not results. The target of sub-10% MAPE was not met.
+> The measured result is a rolling-backtest MAPE that persistence matches or
+> beats on most city/horizon combinations. For actual results see
+> [`docs/ml_evaluation_report.md`](ml_evaluation_report.md) and the source of
+> truth [`data/backtest_results.json`](../data/backtest_results.json).
+
 ## Data Context
 
 - **Real data**: 26 cities, 12+ pollutants, 2015-01-01 to 2020-07-01 (daily + hourly)

@@ -50,6 +50,17 @@ BASE_AQI = {
     "Kolkata": 140,
 }
 
+_IST = {"timezone": "Asia/Kolkata", "utc_offset_seconds": 19800}
+
+CITY_COORDS = {
+    "Delhi": {"lat": 28.6139, "lon": 77.209, **_IST},
+    "Hyderabad": {"lat": 17.385, "lon": 78.4867, **_IST},
+    "Mumbai": {"lat": 19.076, "lon": 72.8777, **_IST},
+    "Bengaluru": {"lat": 12.9716, "lon": 77.5946, **_IST},
+    "Chennai": {"lat": 13.0827, "lon": 80.2707, **_IST},
+    "Kolkata": {"lat": 22.5726, "lon": 88.3639, **_IST},
+}
+
 MONTH_NAMES = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",

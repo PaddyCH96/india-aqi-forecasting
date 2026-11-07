@@ -20,7 +20,7 @@
 │  ┌────────────────────────────────────────────────────────┐     │
 │  │                 INGESTION PIPELINES                     │     │
 │  │                                                        │     │
-│  │  init_db.py    seed_data.py    fetch_openaq.py         │     │
+│  │  init_db.py    seed_data.py    (retired)               │     │
 │  │  (full reset)  (incremental)   (OpenAQ live)          │     │
 │  │                              fetch_recent_aqi.py       │     │
 │  │                              (Open-Meteo live)         │     │
@@ -105,9 +105,13 @@
 |------|---------|------|-------|
 | 1 | GET /v2/measurements?city=X | requests | Real-time API |
 | 2 | Aggregate hourly→daily | Pandas | Mean per day |
-| 3 | Insert via fetch_openaq.py | insert_city_data | `data_source='OpenAQ'` |
+| 3 | Insert via the OpenAQ fetch script | insert_city_data | `data_source='OpenAQ'` |
 
-**Status**: Script exists but API may require authentication for historical data.
+**Status (annotated 2026-09-02, v2 Phase 2)**: This path was never a live source — it wrote
+zero rows. The OpenAQ fetch script that would have performed step 3 was removed in v2 Phase 2
+because the `/v2/measurements` endpoint it targeted returns HTTP 410 Gone. The table above is
+retained as the dated record of the path that was designed but never used; it is annotated,
+not rewritten.
 
 ## Data Provenance Rules
 

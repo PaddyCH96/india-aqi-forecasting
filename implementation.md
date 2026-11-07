@@ -1,5 +1,9 @@
 # India Air Quality Forecasting — Implementation Plan (Final)
 
+> **Historical record — Phase 4 (Prophet + FastAPI) implementation state.** This document
+> predates the XGBoost forecasting pipeline; its performance figures (e.g. 15.6% MAPE) are
+> Prophet-era and are not current claims. See `README.md` for current model results.
+
 ## Project Overview
 
 **India Air Quality Forecasting** is a data science project that analyzes historical AQI data across Indian cities and forecasts future AQI trajectories using Facebook Prophet. It produces interactive Streamlit dashboards, a FastAPI REST API, batch analysis pipelines, and visualization outputs — all packaged for single-command Docker deployment.
@@ -24,7 +28,6 @@ india-air-quality/
 ├── scripts/                    # 6 production scripts
 │   ├── dashboard.py           # 6-page Streamlit dashboard (history, forecast, validation, provenance)
 │   ├── api.py                  # [NEW] FastAPI REST endpoints
-│   ├── fetch_openaq.py         # [REFACTORED] OpenAQ API + retry
 │   ├── fetch_recent_aqi.py     # [REFACTORED] Open-Meteo API + retry
 │   ├── multi_city_pipeline.py  # [REFACTORED] Batch Prophet across eligible cities
 │   ├── validate_prophet.py     # [REFACTORED] 3-model comparison + model config gen
@@ -111,7 +114,7 @@ Seed data script → synthetic generation → PostgreSQL (city_day)
 - **Seed script** — `scripts/seed_data.py` bootstraps DB from processed CSV → raw CSV → synthetic data
 - **FastAPI API** — `/health`, `/cities`, `/forecast/{city}`, `/validate/{city}` with Pydantic response models
 - **`lib/utils.py`** — `retry()` decorator with configurable exponential backoff, `validate_db_url()`
-- **Retry on fetchers** — `fetch_openaq.py` and `fetch_recent_aqi.py` use `@retry` for transient failures
+- **Retry on fetchers** — `fetch_recent_aqi.py` uses `@retry` for transient failures
 - **model_config.json generation** — `validate_prophet.py` now writes config programmatically
 - **Notebook fix** — `create_notebook.py` uses `lib/` imports instead of hardcoded DB URL
 - **4 documentation files** — `architecture.md`, `deployment.md`, `testing.md`, `handover.md`

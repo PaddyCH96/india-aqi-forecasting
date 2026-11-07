@@ -1,5 +1,9 @@
 # Release Report — india-air-quality v1.0.0
 
+> **Historical record — this report covers the v1.0.0 release (Prophet-only, pre-XGBoost).**
+> It does not describe the current system. See `README.md` for the current model and the note
+> on the superseded 0.8-3.2% MAPE claim introduced in a later release.
+
 ## Test Summary
 
 | Suite | Tests | Status |

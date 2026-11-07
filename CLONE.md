@@ -131,7 +131,7 @@ docker compose --profile api up --build
 | API | FastAPI | REST endpoints for forecasts and validation |
 | ETL | Python scripts | Data ingestion from OpenAQ, Open-Meteo, CSV |
 | Forecasting | Prophet | Time-series AQI predictions through 2030 |
-| Tests | pytest | 144 tests across 9 files, 95% coverage |
+| Tests | pytest | 159 tests across 10 files, 95% coverage |
 | CI | GitHub Actions | Automated test run on push |
 | Deployment | Docker Compose | 4-service stack with PostgreSQL |
 

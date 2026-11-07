@@ -19,17 +19,9 @@ from lib.logging import setup_logger
 from lib.db import get_engine, get_data_freshness, insert_city_data
 from lib.aqi import pm25_to_aqi
 from lib.utils import retry
+from lib.config import CITY_COORDS
 
 logger = setup_logger("fetch-recent-aqi")
-
-CITIES = {
-    'Hyderabad': {'lat': 17.385, 'lon': 78.4867},
-    'Delhi': {'lat': 28.6139, 'lon': 77.209},
-    'Mumbai': {'lat': 19.076, 'lon': 72.8777},
-    'Bengaluru': {'lat': 12.9716, 'lon': 77.5946},
-    'Chennai': {'lat': 13.0827, 'lon': 80.2707},
-    'Kolkata': {'lat': 22.5726, 'lon': 88.3639}
-}
 
 
 def fetch_city_data(city, coords):
@@ -72,7 +64,7 @@ def main():
     all_data = []
     logger.info("=== Fetching AQI 2020-2024 from Open-Meteo ===")
 
-    for city, coords in CITIES.items():
+    for city, coords in CITY_COORDS.items():
         df = fetch_city_data(city, coords)
         if df is not None:
             all_data.append(df)

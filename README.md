@@ -221,7 +221,10 @@ streamlit run scripts/dashboard.py
 - **PM2.5 alone predicts AQI with r=0.97** — other pollutants are largely redundant for forecasting
 - **Mumbai has a monitoring crisis** — 61% of daily AQI records missing, worst of 26 cities
 - **Winter pollution penalty varies by geography** — 2.5× in the north, 1.3× in the south
-- **Data quality determines accuracy** — not model choice. Better monitoring > better algorithms
+- **Data quality limits what is knowable** — Mumbai's 61% missing records cap what any
+  method can do there. But it is not the binding constraint: after the leakage fix the
+  model barely beats persistence even in well-covered cities, which points at a missing
+  input — meteorology — rather than at data volume or model choice
 
 ---
 
